@@ -1,0 +1,305 @@
+<.page_wrapper uri={@uri}>
+  <div class="bg-neutral-700 rounded-lg shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-neutral-100">Serial Analysis</h1>
+      <a href="/" class="text-blue-400 hover:text-blue-300 transition-colors">
+        ← Back to Home
+      </a>
+    </div>
+
+      <!-- Device Selection and Connection -->
+      <div class="p-4 bg-neutral-600 rounded-lg">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-neutral-200">Serial Adapters</h2>
+          <div class="flex items-center space-x-3">
+            <label class="flex items-center space-x-2 text-sm font-medium text-neutral-300 hover:text-neutral-100 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                phx-click="toggle_advanced_settings"
+                checked={@show_advanced_settings}
+                class="w-4 h-4 text-blue-600 bg-neutral-500 border-neutral-400 rounded focus:ring-blue-500 focus:ring-2"
+              />
+              <span>Advanced</span>
+            </label>
+            <button
+              phx-click="refresh_devices"
+              class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              Refresh Devices
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-row gap-6" style="display: flex; flex-direction: row;">
+          <.adapter_card
+            adapter_name="Adapter 1"
+            adapter_color="blue"
+            adapter_key={:adapter_1}
+            connected={@adapter_1_connected}
+            device={@adapter_1_device}
+            available_devices={@available_devices}
+            settings={@adapter_1_settings}
+            settings_changed={@adapter_1_settings_changed}
+            show_advanced={@show_advanced_settings}
+          />
+          
+          <.adapter_card
+            adapter_name="Adapter 2"
+            adapter_color="green"
+            adapter_key={:adapter_2}
+            connected={@adapter_2_connected}
+            device={@adapter_2_device}
+            available_devices={@available_devices}
+            settings={@adapter_2_settings}
+            settings_changed={@adapter_2_settings_changed}
+            show_advanced={@show_advanced_settings}
+          />
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="space-y-6">
+        <!-- Zone Controls -->
+        <div class="bg-neutral-700 rounded-lg py-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-neutral-200">Zone Controls</h3>
+            <%= if @device_config && @device_config.zones && map_size(@device_config.zones) > 0 do %>
+              <div class="text-sm text-neutral-400">
+                Showing <%= length(@configured_zones) %> configured zones
+              </div>
+            <% else %>
+              <div class="text-sm text-yellow-400">
+                No zone configuration found - showing default zones
+              </div>
+            <% end %>
+          </div>
+          
+          <div class="flex gap-4 overflow-x-auto">
+            <%= for zone <- @configured_zones do %>
+              <!-- <.zone_volume_control
+                zone={zone}
+                zone_name={get_zone_name(@device_config, zone)}
+                adapter_connected={@adapter_2_connected}
+                adapter="adapter_2"
+                mute={@zone_mute_states[zone]}
+                sources={@zone_sources[zone]}
+                current_source={@zone_source_states[zone]}
+              /> -->
+            <% end %>
+          </div>
+        </div>
+
+      <!-- Combined Messages -->
+      <div class="bg-neutral-600 rounded-lg p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-lg font-semibold text-neutral-200">Message Log</h3>
+          <div class="flex space-x-2">
+            <button
+              phx-click="clear_messages"
+              disabled={length(@all_messages) == 0}
+              class={[
+                "px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2",
+                if(length(@all_messages) == 0,
+                  do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
+                  else: "bg-red-600 text-white hover:bg-red-700"
+                )
+              ]}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              <span>Clear</span>
+            </button>
+            <button
+              phx-click="copy_to_console"
+              disabled={length(@all_messages) == 0}
+              class={[
+                "px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2",
+                if(length(@all_messages) == 0,
+                  do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
+                  else: "bg-purple-600 text-white hover:bg-purple-700"
+                )
+              ]}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>Copy to Console</span>
+            </button>
+            <button
+              phx-click="copy_adapter1_hex_to_console"
+              disabled={length(@all_messages) == 0}
+              class={[
+                "px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2",
+                if(length(@all_messages) == 0,
+                  do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
+                  else: "bg-blue-600 text-white hover:bg-blue-700"
+                )
+              ]}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span>Adapter 1 Hex</span>
+            </button>
+            <button
+              phx-click="copy_adapter2_hex_to_console"
+              disabled={length(@all_messages) == 0}
+              class={[
+                "px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2",
+                if(length(@all_messages) == 0,
+                  do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
+                  else: "bg-green-600 text-white hover:bg-green-700"
+                )
+              ]}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span>Adapter 2 Hex</span>
+            </button>
+          </div>
+        </div>
+        <div class="bg-neutral-800 p-3 rounded min-h-[200px] max-h-[400px] overflow-y-auto">
+          <%= if length(@all_messages) > 0 do %>
+            <div class="space-y-2">
+              <%= for message <- @all_messages do %>
+                <div class={[
+                  "p-2 rounded text-sm border-l-4",
+                  cond do
+                    message.adapter_color == "blue" -> "bg-blue-900 border-blue-500"
+                    message.adapter_color == "green" -> "bg-green-900 border-green-500"
+                    message.adapter_color == "grey" -> "bg-neutral-700 border-neutral-500"
+                    true -> "bg-blue-900 border-blue-500"
+                  end
+                ]}>
+                  <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                      <div class={[
+                        "font-mono text-sm",
+                        cond do
+                          message.adapter_color == "blue" -> "text-blue-300"
+                          message.adapter_color == "green" -> "text-green-300"
+                          message.adapter_color == "grey" -> "text-neutral-300"
+                          true -> "text-blue-300"
+                        end
+                      ]}>
+                        <%= message.hex %>
+                      </div>
+                    </div>
+                    <div class="ml-4 text-xs">
+                      <div class={[
+                        "px-2 py-1 rounded text-xs font-medium",
+                        cond do
+                          message.adapter_color == "blue" -> "bg-blue-600 text-blue-100"
+                          message.adapter_color == "green" -> "bg-green-600 text-green-100"
+                          message.adapter_color == "grey" -> "bg-neutral-600 text-neutral-100"
+                          true -> "bg-blue-600 text-blue-100"
+                        end
+                      ]}>
+                        <%= message.adapter_name %>
+                      </div>
+                      <div class="text-neutral-400 mt-1">
+                        <%= Calendar.strftime(message.timestamp, "%H:%M:%S") %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-neutral-500">No messages received yet...</div>
+          <% end %>
+        </div>
+        
+        <!-- Send Command -->
+        <div class="mt-4 pt-4 border-t border-neutral-500">
+          <form phx-change="update_command_input" phx-debounce="100">
+            <div class="flex space-x-3">
+              <input
+                type="text"
+                name="command_input"
+                value={@command_input}
+                placeholder="Send a command manually..."
+                class="flex-1 px-3 py-2 bg-neutral-500 border border-neutral-400 rounded-md text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                phx-click="send_command"
+                phx-value-adapter="adapter_1"
+                disabled={!@adapter_1_connected}
+                class={[
+                "px-6 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2",
+                  if(!@adapter_1_connected,
+                    do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
+                    else: "bg-blue-600 text-white hover:bg-blue-700"
+                  )
+                ]}
+              >
+              <div class="w-2 h-2 bg-blue-300 rounded-full"></div>
+              <span>Send to Adapter 1</span>
+              </button>
+              <button
+                type="button"
+                phx-click="send_command"
+                phx-value-adapter="adapter_2"
+                disabled={!@adapter_2_connected}
+                class={[
+                "px-6 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2",
+                  if(!@adapter_2_connected,
+                    do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
+                    else: "bg-green-600 text-white hover:bg-green-700"
+                  )
+                ]}
+              >
+              <div class="w-2 h-2 bg-green-300 rounded-full"></div>
+              <span>Send to Adapter 2</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+        </div>
+      </div>
+
+      <script>
+    window.addEventListener("phx:log_to_console", (e) => {
+      console.log("=== SERIAL RECORDING DATA ===");
+      console.log(JSON.parse(e.detail.data));
+      console.log("=== END RECORDING DATA ===");
+    });
+
+    window.addEventListener("phx:copy_messages_to_console", (e) => {
+      console.log("=== SERIAL MESSAGE LOG DATA ===");
+      console.log("Copy this data for analysis:");
+      console.log(JSON.stringify(e.detail.messages, null, 2));
+      console.log("=== END MESSAGE LOG DATA ===");
+    });
+
+    window.addEventListener("phx:copy_adapter1_hex_to_console", (e) => {
+      console.log("=== ADAPTER 1 HEX VALUES ===\n" + e.detail.hex_values.join('\n') + "\n=== END ADAPTER 1 HEX VALUES ===");
+    });
+
+    window.addEventListener("phx:copy_adapter2_hex_to_console", (e) => {
+      console.log("=== ADAPTER 2 HEX VALUES ===\n" + e.detail.hex_values.join('\n') + "\n=== END ADAPTER 2 HEX VALUES ===");
+    });
+
+    window.addEventListener("phx:volume_response_log", (e) => {
+      console.log("=== VOLUME RESPONSE DATA ===");
+      console.log("Volume command response:");
+      console.log(JSON.stringify(e.detail, null, 2));
+      console.log("=== END VOLUME RESPONSE DATA ===");
+    });
+
+    window.addEventListener("phx:update_volume_display", (e) => {
+      const zone = e.detail.zone;
+      const volume = e.detail.volume;
+      const display = document.getElementById(`volume-display-${zone}`);
+      if (display) {
+        display.textContent = volume + '%';
+      }
+    });
+
+  </script>
+</.page_wrapper>

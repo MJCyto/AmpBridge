@@ -1,0 +1,23 @@
+<div class="min-h-screen bg-neutral-800 p-8" id="eth-diagram-live">
+  <div class="max-w-7xl mx-auto">
+    <div class="bg-neutral-700 rounded-lg shadow-lg p-6">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-3xl font-bold text-neutral-100 mb-2">Ethernet Cable Diagram</h1>
+          <p class="text-neutral-400">Configure ethernet cable wire arrangements</p>
+        </div>
+        <a href="/" class="text-blue-400 hover:text-blue-300 transition-colors">
+          ← Back to Home
+        </a>
+      </div>
+
+      <.live_component
+        module={AmpBridgeWeb.EthDiagramLive.WiringDiagram}
+        id="wiring-diagram"
+        connections={@connections}
+        wire_colors={@left_connector.wires}
+        cable_config={@cable_config}
+      />
+    </div>
+  </div>
+</div>

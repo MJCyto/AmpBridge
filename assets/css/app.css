@@ -1,0 +1,233 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+@import "navbar.css";
+
+/* Custom styles */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+
+  /* Command Learning Scrolling */
+  .command-learning-zones {
+    scrollbar-width: thin;
+    scrollbar-color: #4B5563 #1F2937;
+  }
+  
+  .command-learning-zones::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .command-learning-zones::-webkit-scrollbar-track {
+    background: #1F2937;
+    border-radius: 4px;
+  }
+  
+  .command-learning-zones::-webkit-scrollbar-thumb {
+    background: #4B5563;
+    border-radius: 4px;
+  }
+  
+  .command-learning-zones::-webkit-scrollbar-thumb:hover {
+    background: #6B7280;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-md border border-neutral-200 p-6;
+  }
+  
+  .input-field {
+    @apply w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+  
+  /* Custom range slider styles */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  
+  input[type="range"]::-webkit-slider-track {
+    width: 100%;
+    height: 8px;
+    cursor: pointer;
+    background: #e5e7eb;
+    border-radius: 4px;
+    border: none;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-top: -6px;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+  }
+  
+  input[type="range"]::-moz-range-track {
+    width: 100%;
+    height: 8px;
+    cursor: pointer;
+    background: #e5e7eb;
+    border-radius: 4px;
+    border: none;
+  }
+  
+  input[type="range"]::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  input[type="range"]::-moz-range-thumb:hover {
+    background: #2563eb;
+  }
+
+  /* Modern vertical range slider styles (2024+) */
+  input[type="range"][orient="vertical"] {
+    writing-mode: vertical-lr;
+    direction: rtl;
+    appearance: slider-vertical;
+    width: 16px;
+    vertical-align: bottom;
+  }
+
+  /* CSS Transform approach for vertical sliders - more reliable */
+  .vertical-slider {
+    position: relative;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    width: 120px;
+    height: 16px;
+    margin: 60px -45px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  /* Custom vertical slider track - properly sized for rotated orientation */
+  .vertical-slider::-webkit-slider-track {
+    width: 100%;
+    height: 16px;
+    cursor: pointer;
+    background: #e5e7eb;
+    border-radius: 8px;
+    border: none;
+    box-sizing: border-box;
+  }
+
+  /* Custom vertical slider thumb */
+  .vertical-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-top: -2px;
+  }
+
+  .vertical-slider::-webkit-slider-thumb:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+  }
+
+  /* Firefox vertical slider */
+  .vertical-slider::-moz-range-track {
+    width: 100%;
+    height: 16px;
+    cursor: pointer;
+    background: #e5e7eb;
+    border-radius: 8px;
+    border: none;
+    box-sizing: border-box;
+  }
+
+  .vertical-slider::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .vertical-slider::-moz-range-thumb:hover {
+    background: #2563eb;
+  }
+
+  /* Device master volume specific styling */
+  .vertical-slider.device-master::-webkit-slider-track {
+    background: #9ca3af;
+  }
+
+  .vertical-slider.device-master::-webkit-slider-thumb {
+    background: #6b7280;
+  }
+
+  .vertical-slider.device-master::-moz-range-track {
+    background: #9ca3af;
+  }
+
+  .vertical-slider.device-master::-moz-range-thumb {
+    background: #6b7280;
+  }
+
+  /* Container for vertical sliders */
+  .vertical-slider-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 120px;
+    width: 30px;
+    overflow: visible;
+    position: relative;
+  }
+
+  /* Restore ordered list numbers - more specific to override Tailwind */
+  ol {
+    list-style-type: decimal !important;
+    list-style-position: outside !important;
+    padding-left: 1.5rem !important;
+    margin-left: 0 !important;
+  }
+
+  ol li {
+    margin-bottom: 0.5rem !important;
+    display: list-item !important;
+  }
+
+
+}

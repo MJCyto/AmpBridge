@@ -1,0 +1,117 @@
+# Dependencies
+deps/
+_build/
+
+# Database
+*.db
+*.db-*
+*.db-wal
+*.db-shm
+priv/repo/*.db
+priv/repo/*.db-*
+priv/repo/*.db-wal
+priv/repo/*.db-shm
+
+# Environment and secrets
+.env
+.env.*
+config/*.local.exs
+config/dev.secret.exs
+config/prod.secret.exs
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.#*
+
+# Logs
+log/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Coverage reports
+cover/
+coverage/
+
+# Node.js (if you add any frontend tools later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Elixir specific
+*.beam
+*.app
+*.appup
+*.rel
+*.script
+*.boot
+*.config
+*.lock
+*.pid
+*.port
+
+# Phoenix specific
+priv/static/assets/
+priv/static/cache_manifest.json
+
+# Test artifacts
+test/tmp/
+test/priv/
+
+# Documentation
+doc/
+docs/
+
+# Archives
+*.tar.gz
+*.zip
+
+# Local development
+*.local
+local/
+
+# Build artifacts
+priv/static/js/
+priv/static/css/
+priv/static/fonts/
+assets/node_modules/
+assets/.cache/
+assets/dist/
+
+# Mix build artifacts
+mix.lock
+
+# Elixir Language Server
+.elixir_ls/
+
+# Additional build artifacts
+priv/static/js/
+priv/static/css/
+priv/static/fonts/
+priv/static/images/
+
+# Local database files (additional patterns)
+amp_bridge_dev.db*
+
+# Development scripts
+mutagen-sync.sh
+mutagen.yml

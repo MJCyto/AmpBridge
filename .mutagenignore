@@ -1,0 +1,304 @@
+# Mutagen configuration for AmpBridge project
+# This file configures file synchronization between local development and remote server
+
+version: 1
+sync:
+  amp-bridge:
+    alpha: "/Users/mj/Code/AmpBridge"
+    beta: "mj@192.168.1.223:/home/mj/amp-bridge"
+    
+    # Sync mode - two-way sync with conflict resolution
+    mode: "two-way-resolved"
+    
+    # Ignore patterns to avoid syncing unnecessary files
+    ignore:
+      # Build artifacts
+      - "**/_build/**"
+      - "**/deps/**"
+      - "**/node_modules/**"
+      - "**/priv/static/assets/**"
+      - "**/priv/static/cache_manifest.json"
+      
+      # Database files
+      - "**/*.db"
+      - "**/*.db-*"
+      - "**/*.db-wal"
+      - "**/*.db-shm"
+      
+      # Logs and temporary files
+      - "**/log/**"
+      - "**/*.log"
+      - "**/*.tmp"
+      - "**/*.temp"
+      - "**/*.bak"
+      - "**/*.orig"
+      
+      # OS and editor files
+      - "**/.DS_Store"
+      - "**/.DS_Store?"
+      - "**/._*"
+      - "**/.vscode/**"
+      - "**/.idea/**"
+      - "**/*.swp"
+      - "**/*.swo"
+      - "**/*~"
+      - "**/\#*\#"
+      - "**/.#*"
+      
+      # Coverage and test artifacts
+      - "**/cover/**"
+      - "**/coverage/**"
+      - "**/test/tmp/**"
+      - "**/test/priv/**"
+      
+      # Documentation
+      - "**/doc/**"
+      - "**/docs/**"
+      
+      # Archives
+      - "**/*.tar.gz"
+      - "**/*.zip"
+      
+      # Local development files
+      - "**/*.local"
+      - "**/local/**"
+      
+      # Elixir Language Server
+      - "**/.elixir_ls/**"
+      
+      # Mix lock file (can cause conflicts)
+      - "**/mix.lock"
+    
+    # File watching and sync behavior
+    watchMode: "portable"
+    watchPollingInterval: 1
+    
+    # Symlink handling
+    symlinkMode: "posix-raw"
+    
+    # Conflict resolution strategy
+    conflictResolution: "alpha-wins"
+    
+    # Maximum file size (100MB)
+    maxFileSize: 104857600
+    
+    # Ignore VCS ignore files
+    ignoreVCS: true
+    
+    # Pre-create directories
+    createDirMode: 0755
+    createFileMode: 0644
+    
+    # SSH configuration
+    ssh:
+      # Use default SSH key
+      identityFile: "~/.ssh/id_rsa"
+      # Alternative: specify a specific key if needed
+      # identityFile: "~/.ssh/your_key"
+      
+    # Performance settings
+    maxConcurrency: 4
+    maxStagingFileSize: 104857600
+    
+    # Logging
+    logLevel: "info"
+    
+    # Health check settings
+    healthCheck:
+      enabled: true
+      interval: 30
+      timeout: 10
+```
+
+Now I'll also create a simple script to help you manage the Mutagen sync:
+
+```bash:/Users/mj/Code/AmpBridge/mutagen-sync.sh
+#!/bin/bash
+
+# Mutagen sync management script for AmpBridge project
+
+case "$1" in
+    start)
+        echo "Starting Mutagen sync..."
+        mutagen sync create --config-file=mutagen.yml
+        ;;
+    stop)
+        echo "Stopping Mutagen sync..."
+        mutagen sync terminate amp-bridge
+        ;;
+    restart)
+        echo "Restarting Mutagen sync..."
+        mutagen sync terminate amp-bridge
+        sleep 2
+        mutagen sync create --config-file=mutagen.yml
+        ;;
+    status)
+        echo "Mutagen sync status:"
+        mutagen sync list
+        ;;
+    logs)
+        echo "Mutagen sync logs:"
+        mutagen sync logs amp-bridge
+        ;;
+    flush)
+        echo "Flushing Mutagen sync..."
+        mutagen sync flush amp-bridge
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|logs|flush}"
+        echo ""
+        echo "Commands:"
+        echo "  start   - Start the Mutagen sync"
+        echo "  stop    - Stop the Mutagen sync"
+        echo "  restart - Restart the Mutagen sync"
+        echo "  status  - Show sync status"
+        echo "  logs    - Show sync logs"
+        echo "  flush   - Flush pending changes"
+        exit 1
+        ;;
+esac
+```
+
+Let me also create a `.mutagenignore` file to complement the ignore patterns in the YAML config:
+
+```gitignore:/Users/mj/Code/AmpBridge/.mutagenignore
+# Additional ignore patterns for Mutagen sync
+# This file supplements the ignore patterns in mutagen.yml
+
+# Build artifacts
+_build/
+deps/
+node_modules/
+priv/static/assets/
+priv/static/cache_manifest.json
+
+# Database files
+*.db
+*.db-*
+*.db-wal
+*.db-shm
+amp_bridge_dev.db*
+
+# Logs
+log/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.#*
+
+# Coverage
+cover/
+coverage/
+
+# Test artifacts
+test/tmp/
+test/priv/
+
+# Documentation
+doc/
+docs/
+
+# Archives
+*.tar.gz
+*.zip
+
+# Local development
+*.local
+local/
+
+# Elixir Language Server
+.elixir_ls/
+
+# Mix lock file
+mix.lock
+```
+
+Now let me make the script executable and provide you with setup instructions:
+
+```bash
+chmod +x /Users/mj/Code/AmpBridge/mutagen-sync.sh
+```
+
+## Setup Instructions
+
+Here's how to get Mutagen working for your project:
+
+### 1. Install Mutagen (if not already installed)
+
+On macOS with Homebrew:
+```bash
+brew install mutagen-io/mutagen/mutagen
+```
+
+Or download from: https://mutagen.io/documentation/introduction/installation
+
+### 2. Set up SSH access to your remote server
+
+Make sure you can SSH to your server without password prompts:
+```bash
+ssh-copy-id mj@192.168.1.223
+```
+
+Or manually copy your SSH key:
+```bash
+cat ~/.ssh/id_rsa.pub | ssh mj@192.168.1.223 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+```
+
+### 3. Create the remote directory
+
+SSH to your server and create the project directory:
+```bash
+ssh mj@192.168.1.223
+mkdir -p /home/mj/amp-bridge
+```
+
+### 4. Start the sync
+
+From your local project directory:
+```bash
+# Start the sync
+./mutagen-sync.sh start
+
+# Or directly with mutagen
+mutagen sync create --config-file=mutagen.yml
+```
+
+### 5. Monitor the sync
+
+```bash
+# Check status
+./mutagen-sync.sh status
+
+# View logs
+./mutagen-sync.sh logs
+
+# Flush pending changes
+./mutagen-sync.sh flush
+```
+
+### 6. Stop the sync when done
+
+```bash
+./mutagen-sync.sh stop
+```

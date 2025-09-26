@@ -1,0 +1,92 @@
+/* Navbar Sidebar Styles */
+.navbar.sidebar {
+  @apply flex flex-col
+  absolute z-40 left-0 top-0
+  -translate-x-64 rounded-md mt-18 ml-2
+  lg:static lg:left-auto lg:top-auto lg:translate-x-0
+  lg:rounded-none lg:mt-0 lg:ml-0
+  h-screen min-h-screen
+  overflow-y-auto
+  shrink-0
+  bg-neutral-800 shadow-xs
+  py-2
+  border-r border-neutral-700;
+  transition: width 150ms ease-out;
+}
+
+/* Ensure navbar takes full height */
+nav[class*="flex flex-col h-screen"] {
+  height: 100vh !important;
+  min-height: 100vh !important;
+}
+
+/* Ensure fixed navbar maintains height */
+nav.fixed {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+}
+
+/* Ensure icon spans are properly sized */
+nav .icon {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Ensure SVG icons are properly sized */
+nav svg {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  flex-shrink: 0 !important;
+}
+
+
+/* Sidebar expanded state */
+.sidebar-expanded {
+  width: 16rem !important; /* 256px */
+}
+
+/* Ensure proper spacing and layout */
+.navbar .header {
+  @apply flex justify-between mb-6 px-2 w-auto;
+}
+
+.navbar .content {
+  @apply space-y-2 px-2;
+}
+
+/* Navigation links */
+.navbar .nav-link {
+  @apply flex items-center gap-3
+  pl-3 pr-3 py-2 rounded-lg mb-0.5 last:mb-0
+  text-neutral-300 hover:text-white
+  hover:bg-neutral-700
+  truncate transition;
+
+  .icon {
+    @apply shrink-0 w-5 h-5 fill-current text-neutral-400;
+  }
+
+  .text {
+    @apply text-sm font-medium
+    lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100
+    duration-200;
+  }
+
+  &.active {
+    @apply bg-teal-600 text-white;
+    
+    .icon {
+      @apply text-white;
+    }
+    
+    .text {
+      @apply text-white;
+    }
+  }
+}

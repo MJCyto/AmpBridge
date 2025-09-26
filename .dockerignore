@@ -1,0 +1,55 @@
+# Dependencies
+deps/
+_build/
+node_modules/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Development files
+dev.sh
+mutagen-sync.sh
+mutagen.yml
+
+# Test files
+test/
+test_*.exs
+test_*.sh
+
+# Documentation
+*.md
+!README.md
+
+# Temporary files
+tmp/
+temp/
