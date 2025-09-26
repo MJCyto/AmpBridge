@@ -902,14 +902,22 @@ defmodule AmpBridgeWeb.HomeLive.Index do
     # Load device configuration from database
     device = Devices.get_device(1)
 
-    # Always use 8 zones (0-7) regardless of database configuration
-    # This ensures consistent zone count display
-    default_zones = [0, 1, 2, 3, 4, 5, 6, 7]
+    if device && device.zones && map_size(device.zones) > 0 do
+      # Use the actually configured zones from the database
+      zones_map = device.zones
 
-    if device do
+      # Extract zone numbers and convert to 0-based indexing
+      # Zones are stored with string keys ("0", "1", "2", "3") representing 0-based indices
+      configured_zones =
+        zones_map
+        |> Map.keys()
+        |> Enum.map(&String.to_integer/1)
+        |> Enum.filter(fn zone -> zone >= 0 end)
+        |> Enum.sort()
+
       # Load states from database, with fallback to defaults
       mute_states =
-        default_zones
+        configured_zones
         |> Enum.map(fn zone ->
           # Load from database, fallback to false
           db_mute_state = Map.get(device.mute_states || %{}, to_string(zone), false)
@@ -918,7 +926,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         |> Enum.into(%{})
 
       source_states =
-        default_zones
+        configured_zones
         |> Enum.map(fn zone ->
           # Load from database, fallback to nil
           db_source_state = Map.get(device.source_states || %{}, to_string(zone), nil)
@@ -927,7 +935,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         |> Enum.into(%{})
 
       volume_states =
-        default_zones
+        configured_zones
         |> Enum.map(fn zone ->
           # Load from database, fallback to 50
           db_volume_state = Map.get(device.volume_states || %{}, to_string(zone), 50)
@@ -947,18 +955,23 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         end)
 
       zone_sources_map =
-        default_zones
+        configured_zones
         |> Enum.map(fn zone ->
           {zone, sources_list}
         end)
         |> Enum.into(%{})
 
       # Create zone mapping for commands (1-based zone numbers)
-      zone_mapping = %{0 => 1, 1 => 2, 2 => 3, 3 => 4, 4 => 5, 5 => 6, 6 => 7, 7 => 8}
+      zone_mapping =
+        configured_zones
+        |> Enum.with_index(1)
+        |> Enum.into(%{})
 
-      {default_zones, mute_states, source_states, zone_sources_map, volume_states, zone_mapping}
+      {configured_zones, mute_states, source_states, zone_sources_map, volume_states, zone_mapping}
     else
-      # Fallback to default zones 0-7 if no device (0-based)
+      # Fallback to default zones 0-7 if no device or no zones configured (0-based)
+      default_zones = [0, 1, 2, 3, 4, 5, 6, 7]
+
       mute_states =
         default_zones
         |> Enum.map(fn zone -> {zone, false} end)

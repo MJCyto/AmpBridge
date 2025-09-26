@@ -201,11 +201,11 @@ defmodule AmpBridgeWeb.ZoneController do
         sources_map = device.sources || %{}
 
         # Extract zone numbers and convert to 0-based indexing
+        # Zones are stored with string keys ("0", "1", "2", "3") representing 0-based indices
         zone_numbers =
           zones_map
           |> Map.keys()
           |> Enum.map(&String.to_integer/1)
-          |> Enum.map(fn zone -> zone - 1 end)
           |> Enum.filter(fn zone -> zone >= 0 end)
           |> Enum.sort()
 

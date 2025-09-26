@@ -32,7 +32,6 @@ defmodule AmpBridgeWeb.SerialAnalysisLive.Index do
           zones_map
           |> Map.keys()
           |> Enum.map(&String.to_integer/1)
-          |> Enum.map(fn zone -> zone - 1 end)
           |> Enum.sort()
 
         mute_states =
