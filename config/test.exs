@@ -14,3 +14,9 @@ config :amp_bridge, AmpBridge.Repo,
 
 config :logger, level: :warning
 config :phoenix, :plug_serve_static, false
+
+# Test mode configuration
+config :amp_bridge, :test_mode, true
+
+# Mock hardware processes in test mode
+config :amp_bridge, :mock_hardware, true

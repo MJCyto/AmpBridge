@@ -12,7 +12,7 @@ The nice thing is that the relay is bidirectional, so when the amp response come
 
 AmpBridge is free and open source. If you find it useful, consider supporting development:
 
-- **GitHub Sponsors**: [Sponsor MJ Kochuk](https://github.com/sponsors/MJCyto)
+- **GitHub Sponsors**: [![Sponsor MJ Kochuk](bmc-button.png)](https://github.com/sponsors/MJCyto)
 - **One-time donations**: Use the GitHub Sponsors page to make a one-time contribution
 
 Please don't feel obligated to donate - but it's always appreciated 🩵

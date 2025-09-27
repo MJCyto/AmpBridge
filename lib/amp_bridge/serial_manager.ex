@@ -135,6 +135,13 @@ defmodule AmpBridge.SerialManager do
   end
 
   @doc """
+  Check CTS status for an adapter
+  """
+  def check_cts_status(adapter) when adapter in [@adapter_1, @adapter_2] do
+    GenServer.call(__MODULE__, {:check_cts_status, adapter})
+  end
+
+  @doc """
   Get adapter color for UI display
   """
   def get_adapter_color(@adapter_1), do: "blue"
@@ -406,6 +413,31 @@ defmodule AmpBridge.SerialManager do
     }
 
     {:reply, status, state}
+  end
+
+  @impl true
+  def handle_call({:check_cts_status, adapter}, _from, state) do
+    uart_pid =
+      case adapter do
+        @adapter_1 -> state.adapter_1_uart_pid
+        @adapter_2 -> state.adapter_2_uart_pid
+      end
+
+    if uart_pid do
+      case Circuits.UART.read(uart_pid, 0) do
+        {:ok, _data} ->
+          # CTS is high (ready to receive)
+          {:reply, {:ok, true}, state}
+        {:error, :eagain} ->
+          # CTS is low (not ready)
+          {:reply, {:ok, false}, state}
+        {:error, reason} ->
+          Logger.error("Failed to check CTS status for #{adapter}: #{reason}")
+          {:reply, {:error, reason}, state}
+      end
+    else
+      {:reply, {:error, "#{adapter} not connected"}, state}
+    end
   end
 
   @impl true
