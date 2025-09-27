@@ -12,6 +12,9 @@ defmodule AmpBridge.ZoneManager do
   use GenServer
   require Logger
 
+  alias AmpBridge.CommandQueue
+  alias AmpBridge.CommandQueue.Command
+
   # Volume encoding constants - can be moved to config later
   @volume_encoding_formulas %{
     1 => 218,
@@ -298,7 +301,26 @@ defmodule AmpBridge.ZoneManager do
     clamped_percentage = max(0, min(100, percentage))
 
     if check_adapter_connection() do
-      create_and_send_volume_command(zone, clamped_percentage)
+      # Convert 1-based zone to 0-based for CommandQueue
+      ui_zone = zone - 1
+
+      # Create volume command data
+      encoding_formula = get_volume_encoding_formula(zone)
+      volume_byte1 = clamped_percentage
+      volume_byte2 = encoding_formula - clamped_percentage
+      command_bytes = [0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, zone, volume_byte1, volume_byte2]
+      checksum = calculate_checksum(command_bytes)
+      command_data = create_zone_specific_chunks(zone, volume_byte1, volume_byte2, checksum)
+      |> Enum.map(fn {chunk, _delay} -> chunk end)
+      |> Enum.join()
+
+      # Create and enqueue command
+      command = Command.volume(ui_zone, clamped_percentage, command_data)
+      CommandQueue.enqueue(CommandQueue, command)
+
+      # Start processing if not already running
+      CommandQueue.start_processing(CommandQueue, :adapter_1)
+
       :ok
     else
       {:error, :adapter_not_connected}
@@ -347,7 +369,20 @@ defmodule AmpBridge.ZoneManager do
       chunks = get_mute_command_chunks(zone)
 
       if length(chunks) > 0 do
-        send_command_chunks(chunks, "mute")
+        # Convert 1-based zone to 0-based for CommandQueue
+        ui_zone = zone - 1
+
+        # Create mute command data
+        command_data = chunks
+        |> Enum.map(fn {chunk, _delay} -> chunk end)
+        |> Enum.join()
+
+        # Create and enqueue command
+        command = Command.mute(ui_zone, true, command_data)
+        CommandQueue.enqueue(CommandQueue, command)
+
+        # Start processing if not already running
+        CommandQueue.start_processing(CommandQueue, :adapter_1)
       else
         Logger.warning("ZoneManager: No mute command defined for zone #{zone}")
       end
@@ -364,7 +399,20 @@ defmodule AmpBridge.ZoneManager do
       chunks = get_unmute_command_chunks(zone)
 
       if length(chunks) > 0 do
-        send_command_chunks(chunks, "unmute")
+        # Convert 1-based zone to 0-based for CommandQueue
+        ui_zone = zone - 1
+
+        # Create unmute command data
+        command_data = chunks
+        |> Enum.map(fn {chunk, _delay} -> chunk end)
+        |> Enum.join()
+
+        # Create and enqueue command
+        command = Command.mute(ui_zone, false, command_data)
+        CommandQueue.enqueue(CommandQueue, command)
+
+        # Start processing if not already running
+        CommandQueue.start_processing(CommandQueue, :adapter_1)
       else
         Logger.warning("ZoneManager: No unmute command defined for zone #{zone}")
       end
@@ -381,7 +429,20 @@ defmodule AmpBridge.ZoneManager do
       chunks = get_source_command_chunks(zone, source_index)
 
       if length(chunks) > 0 do
-        send_command_chunks(chunks, "source change")
+        # Convert 1-based zone to 0-based for CommandQueue
+        ui_zone = zone - 1
+
+        # Create source command data
+        command_data = chunks
+        |> Enum.map(fn {chunk, _delay} -> chunk end)
+        |> Enum.join()
+
+        # Create and enqueue command
+        command = Command.source(ui_zone, source_index, command_data)
+        CommandQueue.enqueue(CommandQueue, command)
+
+        # Start processing if not already running
+        CommandQueue.start_processing(CommandQueue, :adapter_1)
       else
         Logger.warning(
           "ZoneManager: No source command defined for zone #{zone}, source #{source_index}"
