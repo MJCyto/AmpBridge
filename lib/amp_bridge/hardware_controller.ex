@@ -122,18 +122,15 @@ defmodule AmpBridge.HardwareController do
         "Hardware Controller #{state.name}: Received update for device #{state.device_id}"
       )
 
-      # Process the update and generate serial commands
-      commands = generate_commands(state.last_known_state, updated_device)
-
-      # Queue the commands
+      # Update last known state
       state = %{
         state
-        | last_known_state: updated_device,
-          command_queue: state.command_queue ++ commands
+        | last_known_state: updated_device
       }
 
-      # Process the command queue
-      {:noreply, process_command_queue(state)}
+      # Note: Device updates from MQTT are handled by MQTT client
+      # This handler is for UI-generated updates that need HardwareController processing
+      {:noreply, state}
     else
       {:noreply, state}
     end
@@ -149,12 +146,34 @@ defmodule AmpBridge.HardwareController do
   def handle_info({:zone_source_changed, zone_id, source_name}, state) do
     Logger.info("Hardware Controller #{state.name}: Zone #{zone_id} source changed to #{source_name}")
 
-    # Generate and queue source change command
-    command = %{type: :zone_source, zone_id: zone_id, source_name: source_name}
-    updated_state = %{state | command_queue: state.command_queue ++ [command]}
+    # Use CommandLearner system like MQTT client does
+    case source_name do
+      "Off" ->
+        Logger.info("Sending turn_off command for zone #{zone_id} using device #{state.device_id}")
+        case AmpBridge.CommandLearner.execute_command(state.device_id, "turn_off", zone_id) do
+          {:ok, :command_sent} ->
+            Logger.info("Turn off command sent successfully for zone #{zone_id}")
+          {:error, reason} ->
+            Logger.warning("Failed to send turn off command for zone #{zone_id}: #{reason}")
+        end
+      source_name when is_binary(source_name) ->
+        # Extract index from "Source X" format (1-based to 0-based)
+        case Regex.run(~r/Source (\d+)/, source_name) do
+          [_, index_str] ->
+            source_index = String.to_integer(index_str) - 1
+            Logger.info("Sending change_source command for zone #{zone_id} to source #{source_index}")
+            case AmpBridge.CommandLearner.execute_command(state.device_id, "change_source", zone_id, source_index: source_index) do
+              {:ok, :command_sent} ->
+                Logger.info("Change source command sent successfully for zone #{zone_id}")
+              {:error, reason} ->
+                Logger.warning("Failed to send change source command for zone #{zone_id}: #{reason}")
+            end
+          nil ->
+            Logger.warning("Could not parse source name: #{source_name}")
+        end
+    end
 
-    # Process the command queue
-    {:noreply, process_command_queue(updated_state)}
+    {:noreply, state}
   end
 
   @impl true
@@ -564,19 +583,43 @@ defmodule AmpBridge.HardwareController do
       [command | rest] ->
         Logger.info("Hardware Controller #{state.name}: Processing command #{inspect(command)}")
 
-        # Send the command
-        case send_serial_command(state.serial_connection, command) do
-          {:ok, _response} ->
+        # Use CommandLearner system for command processing
+        case process_command_with_learner(command, state.device_id) do
+          :ok ->
             %{state | command_queue: rest}
-
           {:error, reason} ->
             Logger.error(
               "Hardware Controller #{state.name}: Command failed, will retry: #{reason}"
             )
-
             # Keep the command in the queue for retry
             state
         end
+    end
+  end
+
+  defp process_command_with_learner(command, device_id) do
+    case command.type do
+      :zone_source ->
+        case command.source_name do
+          "Off" ->
+            case AmpBridge.CommandLearner.execute_command(device_id, "turn_off", command.zone_id) do
+              {:ok, :command_sent} -> :ok
+              {:error, reason} -> {:error, reason}
+            end
+          source_name when is_binary(source_name) ->
+            case Regex.run(~r/Source (\d+)/, source_name) do
+              [_, index_str] ->
+                source_index = String.to_integer(index_str) - 1
+                case AmpBridge.CommandLearner.execute_command(device_id, "change_source", command.zone_id, source_index: source_index) do
+                  {:ok, :command_sent} -> :ok
+                  {:error, reason} -> {:error, reason}
+                end
+              nil ->
+                {:error, "Could not parse source name: #{source_name}"}
+            end
+        end
+      _ ->
+        {:error, "Unsupported command type: #{command.type}"}
     end
   end
 end
