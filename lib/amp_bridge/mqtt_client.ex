@@ -694,10 +694,12 @@ defmodule AmpBridge.MQTTClient do
       mute_states = device.mute_states || %{}
       source_states = device.source_states || %{}
       sources_map = device.sources || %{}
+      zones_map = device.zones || %{}
 
       volume = Map.get(volume_states, to_string(zone_id), 0)
       muted = Map.get(mute_states, to_string(zone_id), false)
       raw_source = Map.get(source_states, to_string(zone_id), nil)
+      zone_name = get_zone_name(zones_map, zone_id)
 
       # Map source name using configured sources
       # If sources_map is empty, use the same fallback as zone controller
@@ -726,7 +728,7 @@ defmodule AmpBridge.MQTTClient do
         muted: muted,
         source: source || "Off",
         connected: true,
-        name: "Zone #{zone_id + 1}"
+        name: zone_name || "Zone #{zone_id + 1}"
       }
 
       {:ok, zone}
