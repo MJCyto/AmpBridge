@@ -27,10 +27,6 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64, linux/arm/v7]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,13 +79,13 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           # Create and push manifest for multi-arch support
-          docker buildx imagetools create \
-              -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpha \
-              -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-              -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:beta \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-armv7
+                  docker buildx imagetools create \
+                      -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpha \
+                      -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+                      -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:beta \
+                      ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
+                      ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64 \
+                      ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-armv7
 
       - name: Image digest
         run: echo "Image built successfully"
