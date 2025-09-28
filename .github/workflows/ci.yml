@@ -31,8 +31,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,19 +56,17 @@ jobs:
             type=raw,value=beta,enable={{is_default_branch}}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event.inputs.tag != '' }}
 
-      - name: Build multi-arch image
+      - name: Build AMD64 image
         uses: docker/build-push-action@v5
         with:
-          context: ./
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            MIX_ENV=prod
-            SECRET_KEY_BASE=${{ secrets.SECRET_KEY_BASE }}
+            context: ./
+            platforms: linux/amd64
+            push: ${{ github.event_name != 'pull_request' }}
+            tags: ${{ steps.meta.outputs.tags }}
+            labels: ${{ steps.meta.outputs.labels }}
+            build-args: |
+                MIX_ENV=prod
+                SECRET_KEY_BASE=${{ secrets.SECRET_KEY_BASE }}
 
       - name: Test image
         if: github.event_name != 'pull_request'
@@ -78,17 +74,6 @@ jobs:
           echo "Testing image functionality..."
           docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --version || true
 
-      - name: Create manifest
-        if: github.event_name != 'pull_request'
-        run: |
-          # Create and push manifest for multi-arch support
-          docker buildx imagetools create \
-              -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpha \
-              -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-              -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:beta \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-armv7
 
       - name: Image digest
         run: echo "Image built successfully"

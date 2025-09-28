@@ -184,15 +184,26 @@ The easiest way to get AmpBridge running is with Docker:
 
 1. **Pull the latest image:**
    ```bash
+   # For AMD64/x86_64 systems (most common)
    docker pull cytotoxicdingus/ampbridge:latest
+   
+   # For other architectures, use the specific tag
+   # docker pull cytotoxicdingus/ampbridge:latest-amd64
    ```
 
 2. **Run the container with USB device access:**
    ```bash
+   # For AMD64/x86_64 systems
    docker run -p 4000:4000 -p 1885:1885 --privileged \
      -v /dev/bus/usb:/dev/bus/usb \
      -v ampbridge-data:/app/data \
      cytotoxicdingus/ampbridge:latest
+     
+   # If you get "no matching manifest" errors, try:
+   # docker run -p 4000:4000 -p 1885:1885 --privileged \
+   #   -v /dev/bus/usb:/dev/bus/usb \
+   #   -v ampbridge-data:/app/data \
+   #   cytotoxicdingus/ampbridge:latest-amd64
    ```
 
 3. **Access the web interface:**
@@ -211,7 +222,7 @@ For easier management, you can use Docker Compose:
 version: '3.8'
 services:
   ampbridge:
-    image: cytotoxicdingus/ampbridge:latest
+    image: cytotoxicdingus/ampbridge:latest  # Use :latest-amd64 if you get manifest errors
     ports:
       - "4000:4000"
       - "1885:1885"

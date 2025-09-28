@@ -2,7 +2,7 @@
 # This creates a production-ready image with automatic database seeding
 
 # Stage 1: Build stage
-FROM elixir:1.14-alpine AS builder
+FROM elixir:1.15-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -14,7 +14,10 @@ RUN apk add --no-cache \
     make \
     gcc \
     g++ \
-    linux-headers
+    linux-headers \
+    openssl-dev \
+    libcrypto3 \
+    libssl3
 
 # Set environment variables
 ENV MIX_ENV=prod
@@ -32,6 +35,12 @@ COPY config ./config
 ENV ERL_SSL_VERSION="tlsv1.2"
 ENV HEX_HTTP_CONCURRENCY=1
 ENV HEX_HTTP_TIMEOUT=120
+ENV ERL_FLAGS="+fnu +fnl -kernel error_logger false -kernel disk_log false -kernel inet_default_connect_options [{nodelay,true}] -kernel logger_level warning -kernel disk_log_sup false"
+ENV ERL_CRASH_DUMP="/dev/null"
+ENV ERL_AFLAGS="-pa /app/ebin"
+
+# Create writable directory for crash dumps
+RUN mkdir -p /tmp && chmod 777 /tmp
 
 # Update CA certificates and set SSL options
 RUN apk add --no-cache ca-certificates && \
