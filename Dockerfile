@@ -2,7 +2,7 @@
 # This creates a production-ready image with automatic database seeding
 
 # Stage 1: Build stage
-FROM elixir:1.15-alpine AS builder
+FROM elixir:1.14-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -34,9 +34,13 @@ ENV ERL_FLAGS="+JMsingle true"
 ENV HEX_HTTP_CONCURRENCY=1
 ENV HEX_HTTP_TIMEOUT=120
 
+# Update CA certificates and set SSL options
+RUN apk add --no-cache ca-certificates && \
+    update-ca-certificates
+
 RUN mix local.hex --force && \
     mix local.rebar --force && \
-    mix deps.get --only prod && \
+    ERL_FLAGS="+JMsingle true" mix deps.get --only prod && \
     ERL_FLAGS="+JMsingle true" mix deps.compile
 
 # Copy assets
