@@ -28,8 +28,9 @@ COPY mix.exs mix.lock ./
 COPY config ./config
 
 # Install Elixir dependencies
-# Set SSL options to handle QEMU emulation issues
-ENV ERL_FLAGS="+ssl_verify_fun {ssl_verify_fun, {fun ssl_verify_fun:verify_fun/3, []}}"
+# Set environment variables to handle QEMU emulation issues
+ENV ERL_SSL_VERSION="tlsv1.2"
+ENV ERL_FLAGS="+JMsingle true"
 ENV HEX_HTTP_CONCURRENCY=1
 ENV HEX_HTTP_TIMEOUT=120
 
