@@ -9,9 +9,9 @@ on:
     workflow_dispatch:
         inputs:
             tag:
-                description: "Custom tag to build"
-                required: false
-                default: "latest"
+            description: "Custom tag to build"
+            required: false
+            default: "latest"
 
 env:
     REGISTRY: docker.io
@@ -29,73 +29,73 @@ jobs:
 
         strategy:
             matrix:
-                platform: [linux/amd64, linux/arm64, linux/arm/v7]
+            platform: [linux/amd64, linux/arm64, linux/arm/v7]
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+            uses: actions/checkout@v4
 
             - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
+            uses: docker/setup-buildx-action@v3
 
             - name: Log in to Docker Hub
-              if: github.event_name != 'pull_request'
-              uses: docker/login-action@v3
-              with:
-                  username: ${{ secrets.DOCKERHUB_USERNAME }}
-                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+            if: github.event_name != 'pull_request'
+            uses: docker/login-action@v3
+            with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
 
             - name: Extract metadata
-              id: meta
-              uses: docker/metadata-action@v5
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-                  tags: |
-                       type=ref,event=branch
-                       type=ref,event=pr
-                       type=sha,prefix={{branch}}-
-                       type=raw,value=alpha
-                       type=raw,value=latest,enable={{is_default_branch}}
-                       type=raw,value=beta,enable={{is_default_branch}}
-                       type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event.inputs.tag != '' }}
+            id: meta
+            uses: docker/metadata-action@v5
+            with:
+            images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            tags: |
+                    type=ref,event=branch
+                    type=ref,event=pr
+                    type=sha,prefix={{branch}}-
+                    type=raw,value=alpha
+                    type=raw,value=latest,enable={{is_default_branch}}
+                    type=raw,value=beta,enable={{is_default_branch}}
+                    type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event.inputs.tag != '' }}
 
             - name: Build multi-arch image
-              uses: docker/build-push-action@v5
-              with:
-                   context: ./
-                  platforms: linux/amd64,linux/arm64,linux/arm/v7
-                  push: ${{ github.event_name != 'pull_request' }}
-                  tags: ${{ steps.meta.outputs.tags }}
-                  labels: ${{ steps.meta.outputs.labels }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
-                  build-args: |
-                      MIX_ENV=prod
-                      SECRET_KEY_BASE=${{ secrets.SECRET_KEY_BASE }}
+            uses: docker/build-push-action@v5
+            with:
+            context: ./
+            platforms: linux/amd64,linux/arm64,linux/arm/v7
+            push: ${{ github.event_name != 'pull_request' }}
+            tags: ${{ steps.meta.outputs.tags }}
+            labels: ${{ steps.meta.outputs.labels }}
+            cache-from: type=gha
+            cache-to: type=gha,mode=max
+            build-args: |
+                   MIX_ENV=prod
+                   SECRET_KEY_BASE=${{ secrets.SECRET_KEY_BASE }}
 
             - name: Test image
-              if: github.event_name != 'pull_request'
-              run: |
-                  echo "Testing image functionality..."
-                  docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --version || true
+            if: github.event_name != 'pull_request'
+            run: |
+            echo "Testing image functionality..."
+            docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --version || true
 
-             - name: Create manifest
-               if: github.event_name != 'pull_request'
-               run: |
-                   # Create and push manifest for multi-arch support
-                   docker buildx imagetools create \
-                     -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpha \
-                     -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-                     -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:beta \
-                     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
-                     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64 \
-                     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-armv7
+            - name: Create manifest
+            if: github.event_name != 'pull_request'
+            run: |
+                  # Create and push manifest for multi-arch support
+                  docker buildx imagetools create \
+               -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpha \
+               -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+               -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:beta \
+                    ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-amd64 \
+                    ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-arm64 \
+                    ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-armv7
 
             - name: Image digest
-              run: echo "Image built successfully"
+            run: echo "Image built successfully"
 
             - name: Notify on success
-              if: success() && github.event_name != 'pull_request'
-              run: |
-                  echo "✅ Multi-arch Docker image built and pushed successfully!"
-                  echo "Tags: ${{ steps.meta.outputs.tags }}"
+            if: success() && github.event_name != 'pull_request'
+            run: |
+            echo "✅ Multi-arch Docker image built and pushed successfully!"
+            echo "Tags: ${{ steps.meta.outputs.tags }}"
