@@ -30,7 +30,6 @@ COPY config ./config
 # Install Elixir dependencies
 # Set environment variables to handle QEMU emulation issues
 ENV ERL_SSL_VERSION="tlsv1.2"
-ENV ERL_FLAGS="+JMsingle true"
 ENV HEX_HTTP_CONCURRENCY=1
 ENV HEX_HTTP_TIMEOUT=120
 
@@ -40,8 +39,8 @@ RUN apk add --no-cache ca-certificates && \
 
 RUN mix local.hex --force && \
     mix local.rebar --force && \
-    ERL_FLAGS="+JMsingle true" mix deps.get --only prod && \
-    ERL_FLAGS="+JMsingle true" mix deps.compile
+    mix deps.get --only prod && \
+    mix deps.compile
 
 # Copy assets
 COPY assets ./assets
