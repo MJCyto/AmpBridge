@@ -11,6 +11,11 @@ node_modules/
 # Logs
 logs/
 *.log
+mosquitto.log
+mosquitto.pid
+
+# MQTT data
+mosquitto-data/
 
 # OS generated files
 .DS_Store
@@ -40,15 +45,23 @@ docker-compose*
 dev.sh
 mutagen-sync.sh
 mutagen.yml
+compare_imports.py
+configuration_map.json
+start-mosquitto.sh
+stop-mosquitto.sh
+structure.sql
 
 # Test files
 test/
 test_*.exs
 test_*.sh
 
-# Documentation
+# Documentation and assets
 *.md
 !README.md
+bmc-button.png
+Captures/
+ELAN_SERIAL_COMMAND_ANALYSIS.md
 
 # Temporary files
 tmp/
