@@ -37,7 +37,7 @@ ENV HEX_HTTP_TIMEOUT=120
 RUN mix local.hex --force && \
     mix local.rebar --force && \
     mix deps.get --only prod && \
-    mix deps.compile
+    ERL_FLAGS="+JMsingle true" mix deps.compile
 
 # Copy assets
 COPY assets ./assets
