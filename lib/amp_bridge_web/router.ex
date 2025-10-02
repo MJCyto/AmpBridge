@@ -22,6 +22,7 @@ defmodule AmpBridgeWeb.Router do
     live("/init", InitLive)
     live("/sources", SourceSetupLive)
     live("/zones", ZoneSetupLive)
+    live("/groups", GroupsLive.Index)
     live("/serial-config", SerialStepLive)
     live("/serial-analysis", SerialAnalysisLive.Index)
     live("/eth-diagram", EthDiagramLive.Index)

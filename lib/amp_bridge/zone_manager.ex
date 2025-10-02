@@ -571,9 +571,40 @@ defmodule AmpBridge.ZoneManager do
   end
 
   defp get_source_command_chunks(zone, source_index) do
-    # Get source command chunks for the zone and source index
-    zone_sources = Map.get(@source_sequences, zone, [])
-    Enum.at(zone_sources, source_index, [])
+    # Try to get learned command first, fallback to hardcoded sequences
+    case get_learned_source_command(zone, source_index) do
+      {:ok, hex_chunks} ->
+        # Convert hex chunks to the expected format
+        hex_chunks
+        |> Enum.map(fn chunk -> {chunk, 0} end)
+
+      {:error, :no_command} ->
+        # Fallback to hardcoded sequences
+        zone_sources = Map.get(@source_sequences, zone, [])
+        Enum.at(zone_sources, source_index, [])
+
+      {:error, _reason} ->
+        # Fallback to hardcoded sequences
+        zone_sources = Map.get(@source_sequences, zone, [])
+        Enum.at(zone_sources, source_index, [])
+    end
+  end
+
+  defp get_learned_source_command(zone, source_index) do
+    alias AmpBridge.LearnedCommands
+
+    # Convert 1-based zone to 0-based for learned commands
+    db_zone = zone - 1
+
+    case LearnedCommands.get_command(1, "change_source", db_zone, source_index: source_index) do
+      nil -> {:error, :no_command}
+      command ->
+        # Convert the command sequence to a list of hex chunks
+        hex_chunks = command.command_sequence
+        |> :binary.bin_to_list()
+        |> Enum.map(&<<&1>>)
+        {:ok, hex_chunks}
+    end
   end
 
   defp send_volume_commands_to_target(zone, current_volume, target_volume, state) do

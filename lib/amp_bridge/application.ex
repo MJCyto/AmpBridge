@@ -24,6 +24,8 @@ defmodule AmpBridge.Application do
         AmpBridge.SerialRelay,
         # Zone Manager - handles volume control and zone state tracking
         AmpBridge.ZoneManager,
+        # Zone Group Manager - handles group control operations
+        AmpBridge.ZoneGroupManager,
         # MQTT Client - publishes zone states for Home Assistant
         AmpBridge.MQTTClient,
         # Command Queue - our new module
@@ -51,6 +53,8 @@ defmodule AmpBridge.Application do
         AmpBridge.SerialRelay,
         # Zone Manager - handles volume control and zone state tracking
         AmpBridge.ZoneManager,
+        # Zone Group Manager - handles group control operations
+        AmpBridge.ZoneGroupManager,
         # MQTT Client - publishes zone states for Home Assistant
         AmpBridge.MQTTClient,
         # Command Queue - our new module

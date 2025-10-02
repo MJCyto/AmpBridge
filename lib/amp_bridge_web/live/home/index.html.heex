@@ -66,49 +66,178 @@
     <% end %>
 
     <!-- Zone Controls Section -->
-    <%= if @configured_zones && length(@configured_zones) > 0 && @adapter_1_connected && @adapter_2_connected do %>
+    <%= if @services_ready do %>
+      <%= if @configured_zones && length(@configured_zones) > 0 && @adapter_1_connected && @adapter_2_connected do %>
+        <div class="bg-neutral-700 rounded-lg py-6 mb-8">
+          <div class="flex justify-between items-center mb-6 px-6">
+            <h3 class="text-xl font-semibold text-neutral-200">Zone Controls</h3>
+            <div class="text-sm text-neutral-400">
+              <%= length(@configured_zones) %> zones configured
+            </div>
+          </div>
+
+          <div class={if @advanced_mode, do: "flex gap-6 overflow-x-auto px-6 pb-2", else: "flex flex-wrap justify-center gap-6 px-6"}>
+            <%= for zone <- @configured_zones do %>
+              <.live_component
+                module={AmpBridgeWeb.ZoneVolumeControl}
+                id={"zone-control-#{zone}"}
+                volume={@zone_volume_states[zone]}
+                zone={zone}
+                zone_name={get_zone_name(Devices.get_device(1), zone)}
+                adapter_connected={@adapter_1_connected}
+                adapter="adapter_1"
+                mute={@zone_mute_states[zone]}
+                sources={@zone_sources[zone]}
+                current_source={@zone_source_states[zone]}
+              />
+            <% end %>
+          </div>
+        </div>
+      <% else %>
+        <%= if @configured_zones && length(@configured_zones) > 0 do %>
+          <div class="bg-yellow-900 border border-yellow-600 text-yellow-200 px-4 py-3 rounded mb-6">
+            <div class="flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+              <div>
+                <h3 class="font-semibold">Zone Controls Unavailable</h3>
+                <p class="text-sm mt-1">
+                  Both serial adapters must be connected to enable zone controls.
+                  Configure your adapters above to get started.
+                </p>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+    <% else %>
+      <!-- Loading state for zones -->
       <div class="bg-neutral-700 rounded-lg py-6 mb-8">
         <div class="flex justify-between items-center mb-6 px-6">
           <h3 class="text-xl font-semibold text-neutral-200">Zone Controls</h3>
-          <div class="text-sm text-neutral-400">
-            <%= length(@configured_zones) %> zones configured
+          <div class="flex items-center gap-2 text-sm text-neutral-400">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-neutral-400"></div>
+            <span>Loading zones...</span>
           </div>
         </div>
-
-        <div class={if @advanced_mode, do: "flex gap-6 overflow-x-auto px-6 pb-2", else: "flex flex-wrap justify-center gap-6 px-6"}>
-          <%= for zone <- @configured_zones do %>
-            <.live_component
-              module={AmpBridgeWeb.ZoneVolumeControl}
-              id={"zone-control-#{zone}"}
-              volume={@zone_volume_states[zone]}
-              zone={zone}
-              zone_name={get_zone_name(Devices.get_device(1), zone)}
-              adapter_connected={@adapter_1_connected}
-              adapter="adapter_1"
-              mute={@zone_mute_states[zone]}
-              sources={@zone_sources[zone]}
-              current_source={@zone_source_states[zone]}
-            />
+        
+        <div class="flex flex-wrap justify-center gap-6 px-6">
+          <!-- Zone skeleton cards -->
+          <%= for _i <- 1..4 do %>
+            <div class="bg-neutral-600 rounded-lg p-4 w-64 animate-pulse">
+              <div class="h-4 bg-neutral-500 rounded mb-3"></div>
+              <div class="h-8 bg-neutral-500 rounded mb-3"></div>
+              <div class="flex justify-between">
+                <div class="h-6 w-16 bg-neutral-500 rounded"></div>
+                <div class="h-6 w-16 bg-neutral-500 rounded"></div>
+              </div>
+            </div>
           <% end %>
         </div>
       </div>
-    <% else %>
-      <%= if @configured_zones && length(@configured_zones) > 0 do %>
-        <div class="bg-yellow-900 border border-yellow-600 text-yellow-200 px-4 py-3 rounded mb-6">
-          <div class="flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            <div>
-              <h3 class="font-semibold">Zone Controls Unavailable</h3>
-              <p class="text-sm mt-1">
-                Both serial adapters must be connected to enable zone controls.
-                Configure your adapters above to get started.
-              </p>
+    <% end %>
+
+    <!-- Zone Groups Section -->
+    <%= if @services_ready do %>
+      <%= if @zone_groups && length(@zone_groups) > 0 && @adapter_1_connected && @adapter_2_connected do %>
+        <div class="bg-neutral-700 rounded-lg py-6 mb-8">
+          <div class="flex justify-between items-center mb-6 px-6">
+            <h3 class="text-xl font-semibold text-neutral-200">Zone Groups</h3>
+            <div class="flex items-center gap-4">
+              <div class="text-sm text-neutral-400">
+                <%= length(@zone_groups) %> groups configured
+              </div>
+              <button
+                phx-click="toggle_group_management"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+              >
+                Manage Groups
+              </button>
             </div>
           </div>
+
+          <div class="flex gap-6 overflow-x-auto px-6 pb-2">
+            <%= for group <- @zone_groups do %>
+              <.live_component
+                module={AmpBridgeWeb.ZoneGroupControl}
+                id={"zone-group-control-#{group.id}"}
+                group_id={group.id}
+                group_name={group.name}
+                group_description={group.description}
+                zones={group.zone_group_memberships}
+                sources={@zone_sources[0] || []}
+                adapter_connected={@adapter_1_connected}
+              />
+            <% end %>
+          </div>
         </div>
+      <% else %>
+        <%= if @adapter_1_connected && @adapter_2_connected do %>
+          <div class="bg-neutral-700 rounded-lg py-6 mb-8">
+            <div class="flex justify-between items-center mb-6 px-6">
+              <h3 class="text-xl font-semibold text-neutral-200">Zone Groups</h3>
+              <div class="text-sm text-neutral-400">
+                No groups configured
+              </div>
+            </div>
+            
+            <div class="text-center py-8 px-6">
+              <svg class="mx-auto h-12 w-12 text-neutral-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+              <h4 class="text-lg font-medium text-neutral-200 mb-2">No Zone Groups</h4>
+              <p class="text-neutral-400 mb-6">Create groups to control multiple zones together with volume modifiers and sequential execution.</p>
+              <.link
+                navigate={~p"/groups"}
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Create Your First Group
+              </.link>
+            </div>
+          </div>
+        <% end %>
       <% end %>
+    <% else %>
+      <!-- Loading state for groups -->
+      <div class="bg-neutral-700 rounded-lg py-6 mb-8">
+        <div class="flex justify-between items-center mb-6 px-6">
+          <h3 class="text-xl font-semibold text-neutral-200">Zone Groups</h3>
+          <div class="flex items-center gap-2 text-sm text-neutral-400">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-neutral-400"></div>
+            <span>Loading groups...</span>
+          </div>
+        </div>
+        
+        <div class="flex gap-6 overflow-x-auto px-6 pb-2">
+          <!-- Group skeleton cards -->
+          <%= for _i <- 1..2 do %>
+            <div class="bg-neutral-600 rounded-lg p-4 w-80 animate-pulse flex-shrink-0">
+              <div class="flex justify-between items-center mb-4">
+                <div class="h-5 w-32 bg-neutral-500 rounded"></div>
+                <div class="h-4 w-16 bg-neutral-500 rounded"></div>
+              </div>
+              <div class="h-8 bg-neutral-500 rounded mb-3"></div>
+              <div class="h-6 w-20 bg-neutral-500 rounded mb-3"></div>
+              <div class="h-6 w-24 bg-neutral-500 rounded"></div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Zone Group Management Section -->
+    <%= if @show_group_management do %>
+      <div class="mb-8">
+        <.live_component
+          module={AmpBridgeWeb.ZoneGroupManager}
+          id="zone-group-manager"
+          audio_device_id={1}
+        />
+      </div>
     <% end %>
 
     <!-- Message Log Section (Advanced Mode Only) -->

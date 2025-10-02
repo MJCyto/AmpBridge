@@ -31,6 +31,9 @@ defmodule AmpBridgeWeb.PageWrapper do
           nil ->
             "AmpBridge"
 
+          "groups" ->
+            "Zone Groups"
+
           first_part ->
             first_part
             |> String.split("_")

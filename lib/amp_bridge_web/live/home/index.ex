@@ -5,6 +5,9 @@ defmodule AmpBridgeWeb.HomeLive.Index do
   alias AmpBridge.Devices
   alias AmpBridge.HexCommandManager
   alias AmpBridge.SerialManager
+  alias AmpBridge.ZoneGroups
+  alias AmpBridge.ZoneManager
+  alias AmpBridge.ZoneGroupManager
   alias AmpBridgeWeb.USBInitComponent
   import AmpBridgeWeb.PageWrapper
 
@@ -31,6 +34,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         adapter_1_connected: connection_status.adapter_1.connected,
         adapter_2_connected: connection_status.adapter_2.connected,
         advanced_mode: false,
+        show_group_management: false,
         all_messages: [],
         database_connected: system_status.database_connected,
         mqtt_connected: system_status.mqtt_connected,
@@ -40,7 +44,8 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         memory_usage: system_status.memory_usage,
         last_command_time: system_status.last_command_time,
         last_command_details: system_status.last_command_details,
-        error_count: system_status.error_count
+        error_count: system_status.error_count,
+        services_ready: check_services_ready()
       )
 
       if connected?(socket) do
@@ -53,6 +58,8 @@ defmodule AmpBridgeWeb.HomeLive.Index do
             {configured_zones, zone_mute_states, zone_source_states, zone_sources, zone_volume_states, zone_mapping} =
               load_zone_configuration()
 
+            zone_groups = ZoneGroups.list_zone_groups(1)
+
             {:ok,
              assign(socket,
                page_title: "AmpBridge",
@@ -63,13 +70,16 @@ defmodule AmpBridgeWeb.HomeLive.Index do
                zone_source_states: zone_source_states,
                zone_sources: zone_sources,
                zone_volume_states: zone_volume_states,
-               zone_mapping: zone_mapping
+               zone_mapping: zone_mapping,
+               zone_groups: zone_groups
              )}
 
           _ ->
             Logger.warning("DEVICE_CARD_DEBUG: HomeLive failed to load devices")
             {configured_zones, zone_mute_states, zone_source_states, zone_sources, zone_volume_states, zone_mapping} =
               load_zone_configuration()
+
+            zone_groups = ZoneGroups.list_zone_groups(1)
 
             {:ok,
              assign(socket,
@@ -81,7 +91,8 @@ defmodule AmpBridgeWeb.HomeLive.Index do
                zone_source_states: zone_source_states,
                zone_sources: zone_sources,
                zone_volume_states: zone_volume_states,
-               zone_mapping: zone_mapping
+               zone_mapping: zone_mapping,
+               zone_groups: zone_groups
              )}
         end
       else
@@ -95,7 +106,8 @@ defmodule AmpBridgeWeb.HomeLive.Index do
            zone_source_states: %{},
            zone_sources: %{},
            zone_volume_states: %{},
-           zone_mapping: %{}
+           zone_mapping: %{},
+           zone_groups: []
          )}
       end
     end
@@ -211,6 +223,12 @@ defmodule AmpBridgeWeb.HomeLive.Index do
     end
 
     {:noreply, assign(socket, advanced_mode: new_advanced_mode)}
+  end
+
+  @impl true
+  def handle_event("toggle_group_management", _params, socket) do
+    new_show_group_management = !socket.assigns.show_group_management
+    {:noreply, assign(socket, show_group_management: new_show_group_management)}
   end
 
   @impl true
@@ -1182,6 +1200,23 @@ defmodule AmpBridgeWeb.HomeLive.Index do
       last_command_details: last_command_details,
       error_count: error_count
     }
+  end
+
+  # Helper function to check if critical services are ready
+  defp check_services_ready do
+    try do
+      # Check if ZoneManager is running and responsive
+      ZoneManager.get_all_zone_volumes()
+
+      # Check if ZoneGroupManager is running and responsive
+      ZoneGroupManager.get_group_state(1)
+
+      true
+    rescue
+      _ -> false
+    catch
+      :exit, _ -> false
+    end
   end
 
   # Helper function to format uptime

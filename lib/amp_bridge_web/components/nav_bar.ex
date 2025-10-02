@@ -82,6 +82,21 @@ defmodule AmpBridgeWeb.NavBar do
           </.link>
 
           <.link
+            navigate={~p"/groups"}
+            class={[
+              "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out ",
+              if(@current_path == "/groups", do: "bg-teal-600 text-white", else: "text-neutral-300 hover:bg-neutral-700 hover:text-white")
+            ]}
+          >
+            <.icon url="/images/rectangle-group.svg" class={"icon w-5 transition-colors duration-300 ease-in-out #{if(@current_path == "/groups", do: "text-white", else: "text-neutral-300")}"} />
+            <span
+              class="duration-200 whitespace-nowrap overflow-hidden transition-colors duration-300 ease-in-out"
+              x-bind:style="navExpanded ? 'opacity: 1;' : 'opacity: 0;'"
+              style="opacity: 0;"
+            >Groups</span>
+          </.link>
+
+          <.link
             navigate={~p"/serial-config"}
             class={[
               "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out ",

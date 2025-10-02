@@ -7,11 +7,12 @@ defmodule AmpBridge.MQTTClient do
   require Logger
 
   alias AmpBridge.Devices
-  alias AmpBridge.CommandLearner
-  alias AmpBridge.ZoneManager
+  alias AmpBridge.ZoneGroupManager
+  alias AmpBridge.ZoneGroups
 
   @client_id "ampbridge_#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}"
   @base_topic "ampbridge/zones"
+  @groups_base_topic "ampbridge/groups"
 
   # Client API
 
@@ -31,6 +32,20 @@ defmodule AmpBridge.MQTTClient do
   """
   def publish_all_zones do
     GenServer.cast(__MODULE__, :publish_all_zones)
+  end
+
+  @doc """
+  Publish zone group state to MQTT
+  """
+  def publish_group_state(group_id, state) do
+    GenServer.cast(__MODULE__, {:publish_group_state, group_id, state})
+  end
+
+  @doc """
+  Publish all zone groups state
+  """
+  def publish_all_groups do
+    GenServer.cast(__MODULE__, :publish_all_groups)
   end
 
   # Server Callbacks
@@ -61,8 +76,10 @@ defmodule AmpBridge.MQTTClient do
     case Tortoise.Connection.start_link(connection_config) do
       {:ok, pid} ->
         subscribe_to_control_topics()
+        subscribe_to_group_control_topics()
         publish_status("online")
         publish_all_zones()
+        publish_all_groups()
 
         {:ok, %{connection_pid: pid, connected: true}}
 
@@ -84,6 +101,47 @@ defmodule AmpBridge.MQTTClient do
   @impl true
   def handle_cast({:publish_zone_state, _zone_id, _state}, %{connected: false} = state_data) do
     Logger.warning("MQTT not connected, cannot publish zone state")
+    {:noreply, state_data}
+  end
+
+  @impl true
+  def handle_cast({:publish_group_state, group_id, state}, %{connected: true} = state_data) do
+    group_topic = "#{@groups_base_topic}/#{group_id}"
+    publish_group_attributes(group_topic, group_id, state)
+
+    {:noreply, state_data}
+  end
+
+  @impl true
+  def handle_cast({:publish_group_state, _group_id, _state}, %{connected: false} = state_data) do
+    Logger.warning("MQTT not connected, cannot publish group state")
+    {:noreply, state_data}
+  end
+
+  @impl true
+  def handle_cast(:publish_all_groups, %{connected: true} = state_data) do
+    try do
+      groups = ZoneGroups.list_zone_groups(1)
+
+      Enum.each(groups, fn group ->
+        case ZoneGroupManager.get_group_state(group.id) do
+          {:ok, group_state} ->
+            publish_group_state(group.id, Map.merge(group_state, %{name: group.name, description: group.description}))
+          {:error, _} ->
+            Logger.warning("Failed to get state for group #{group.id}")
+        end
+      end)
+    rescue
+      error ->
+        Logger.error("Failed to publish all groups: #{inspect(error)}")
+    end
+
+    {:noreply, state_data}
+  end
+
+  @impl true
+  def handle_cast(:publish_all_groups, %{connected: false} = state_data) do
+    Logger.warning("MQTT not connected, cannot publish all groups")
     {:noreply, state_data}
   end
 
@@ -186,12 +244,26 @@ defmodule AmpBridge.MQTTClient do
     end
   end
 
+  defp subscribe_to_group_control_topics do
+    # Subscribe to group control topics (we'll dynamically subscribe to specific groups)
+    # For now, subscribe to a wildcard pattern for all groups
+    group_volume_topic = "#{@groups_base_topic}/+/volume/set"
+    group_mute_topic = "#{@groups_base_topic}/+/mute/set"
+    group_source_topic = "#{@groups_base_topic}/+/source/set"
+
+    Tortoise.Connection.subscribe(@client_id, group_volume_topic, qos: 1)
+    Tortoise.Connection.subscribe(@client_id, group_mute_topic, qos: 1)
+    Tortoise.Connection.subscribe(@client_id, group_source_topic, qos: 1)
+  end
+
   def handle_mqtt_message(%{topic: topic, payload: payload}) do
     Logger.info("Received MQTT message on #{topic}: #{payload}")
 
     case parse_topic(topic) do
       {:zone_control, zone_id, action} ->
         handle_zone_control(zone_id, action, payload)
+      {:group_control, group_id, action} ->
+        handle_group_control(group_id, action, payload)
       _ ->
         Logger.debug("Unknown MQTT topic: #{topic}")
     end
@@ -201,6 +273,8 @@ defmodule AmpBridge.MQTTClient do
     case String.split(topic, "/") do
       ["ampbridge", "zones", zone_id, action, "set"] ->
         {:zone_control, String.to_integer(zone_id), action}
+      ["ampbridge", "groups", group_id, action, "set"] ->
+        {:group_control, String.to_integer(group_id), action}
       _ ->
         :unknown
     end
@@ -210,6 +284,8 @@ defmodule AmpBridge.MQTTClient do
     case topic do
       ["ampbridge", "zones", zone_id, action, "set"] ->
         {:zone_control, String.to_integer(zone_id), action}
+      ["ampbridge", "groups", group_id, action, "set"] ->
+        {:group_control, String.to_integer(group_id), action}
       _ ->
         :unknown
     end
@@ -268,6 +344,65 @@ defmodule AmpBridge.MQTTClient do
     case update_zone_source_mqtt(zone_id, mapped_source) do
       :ok -> Logger.info("Zone #{zone_id} source set to #{mapped_source} via MQTT")
       {:error, reason} -> Logger.error("Failed to set zone #{zone_id} source: #{reason}")
+    end
+  end
+
+  defp handle_group_control(group_id, "volume", payload) do
+    case Integer.parse(payload) do
+      {volume, ""} when volume >= 0 and volume <= 100 ->
+        Logger.info("Setting group #{group_id} volume to #{volume}% via MQTT")
+        ZoneGroupManager.set_group_volume(group_id, volume)
+        publish_group_update(group_id)
+      _ ->
+        Logger.warning("Invalid volume value for group #{group_id}: #{payload}")
+    end
+  end
+
+  defp handle_group_control(group_id, "mute", payload) do
+    case payload do
+      "ON" ->
+        Logger.info("Muting group #{group_id} via MQTT")
+        ZoneGroupManager.toggle_group_mute(group_id)
+        publish_group_update(group_id)
+      "OFF" ->
+        Logger.info("Unmuting group #{group_id} via MQTT")
+        ZoneGroupManager.toggle_group_mute(group_id)
+        publish_group_update(group_id)
+      _ ->
+        Logger.warning("Invalid mute value for group #{group_id}: #{payload}")
+    end
+  end
+
+  defp handle_group_control(group_id, "source", payload) do
+    Logger.info("Setting group #{group_id} source to #{payload} via MQTT")
+    ZoneGroupManager.set_group_source(group_id, payload)
+    publish_group_update(group_id)
+  end
+
+  defp handle_group_control(group_id, action, payload) do
+    Logger.warning("Unknown group control action #{action} for group #{group_id}: #{payload}")
+  end
+
+  defp publish_group_attributes(group_topic, _group_id, group) do
+    Tortoise.publish(@client_id, "#{group_topic}/volume", to_string(group.volume), qos: 1, retain: true)
+    mute_status = if group.muted, do: "ON", else: "OFF"
+    Tortoise.publish(@client_id, "#{group_topic}/mute", mute_status, qos: 1, retain: true)
+    Tortoise.publish(@client_id, "#{group_topic}/source", group.source, qos: 1, retain: true)
+    Tortoise.publish(@client_id, "#{group_topic}/name", group.name, qos: 1, retain: true)
+    if group.description do
+      Tortoise.publish(@client_id, "#{group_topic}/description", group.description, qos: 1, retain: true)
+    end
+    Tortoise.publish(@client_id, "#{group_topic}/zone_count", to_string(group.zone_count), qos: 1, retain: true)
+  end
+
+  defp publish_group_update(group_id) do
+    case ZoneGroupManager.get_group_state(group_id) do
+      {:ok, group_state} ->
+        case ZoneGroups.get_zone_group(group_id) do
+          nil -> Logger.warning("Group #{group_id} not found for MQTT update")
+          group -> publish_group_state(group_id, Map.merge(group_state, %{name: group.name, description: group.description}))
+        end
+      {:error, _} -> Logger.warning("Failed to get state for group #{group_id}")
     end
   end
 

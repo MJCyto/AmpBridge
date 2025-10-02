@@ -57,6 +57,7 @@ defmodule AmpBridge.MixProject do
       kill: ["cmd pkill -9 -f 'beam.smp' && pkill -9 -f 'mix'"],
       "assets.setup": ["cmd npm install --prefix assets"],
       "assets.build": ["cmd npm run deploy --prefix assets", "copy.static"],
+      "assets.deploy": ["cmd npm run deploy --prefix assets", "copy.static"],
       "assets.watch": ["cmd npm run watch --prefix assets"],
       "copy.static": [
         "cmd mkdir -p priv/static/assets/icons && cp -r assets/static/icons/* priv/static/assets/icons/"
