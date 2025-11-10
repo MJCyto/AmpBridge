@@ -111,6 +111,72 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
   end
 
   @impl true
+  def handle_event("export_commands", _params, socket) do
+    device_id = socket.assigns.amp_id
+
+    # Generate export data
+    export_data = AmpBridge.LearnedCommands.export_device_commands(device_id)
+
+    # Check if there are any commands to export
+    total_commands = Map.get(export_data, "metadata") |> Map.get("total_commands", 0)
+
+    if total_commands == 0 do
+      {:noreply, put_flash(socket, :warning, "No commands found to export. Learn some commands first!")}
+    else
+      # Convert to JSON
+      case Jason.encode(export_data, pretty: true) do
+        {:ok, json_string} ->
+          # Generate filename with timestamp
+          timestamp = DateTime.utc_now() |> DateTime.to_date() |> Date.to_string()
+          filename = "ampbridge_commands_#{timestamp}.json"
+
+          # Send file download event to parent LiveView and push event directly
+          parent_pid = socket.root_pid
+          if parent_pid do
+            send(parent_pid, {:download_file, %{content: json_string, filename: filename, content_type: "application/json"}})
+          end
+
+          {:noreply,
+           socket
+           |> put_flash(:info, "Commands exported successfully! (#{total_commands} commands)")
+           |> push_event("download_file", %{content: json_string, filename: filename, content_type: "application/json"})}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to export commands. Please try again.")}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("import_commands", %{"content" => content}, socket) do
+    device_id = socket.assigns.amp_id
+
+    # Import commands
+    case AmpBridge.LearnedCommands.import_device_commands(device_id, content) do
+      {:ok, result} ->
+        message = "Successfully imported #{result.successful_imports} commands"
+        message = if result.failed_imports > 0 do
+          message <> " (#{result.failed_imports} failed)"
+        else
+          message
+        end
+
+        {:noreply,
+         socket
+         |> put_flash(:info, message)
+         |> assign(last_command_learned: %{timestamp: DateTime.utc_now()})}  # Trigger refresh
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Import failed: #{reason}")}
+    end
+  end
+
+  @impl true
+  def handle_event("import_commands", %{"error" => error}, socket) do
+    {:noreply, put_flash(socket, :error, "Failed to read file: #{error}")}
+  end
+
+  @impl true
   def handle_event("learn_mute", %{"zone" => zone_str}, socket) do
     Logger.info("CommandLearningComponent: Received learn_mute event for zone #{zone_str}")
     zone_num = String.to_integer(zone_str)
@@ -225,9 +291,76 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
       <!-- Command Learning Buttons -->
       <%= if @device_config && length(@configured_zones) > 0 do %>
         <div class="bg-neutral-700 rounded-lg py-4">
-          <div class="flex justify-between items-center mb-4 px-6">
-            <h4 class="text-lg font-semibold text-neutral-200">Command Learning</h4>
-            <div class="text-sm text-neutral-400">
+          <div class="px-6">
+            <!-- Top Row -->
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="text-lg font-semibold text-neutral-200">Command Learning</h4>
+              <!-- Import/Export Controls -->
+              <div class="flex items-center gap-2">
+                <!-- Export Button -->
+                <button
+                  phx-click="export_commands"
+                  phx-target={@myself}
+                  class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+                  title="Export all learned commands to JSON file"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export
+                </button>
+
+                <!-- Import Button -->
+                <label class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1 cursor-pointer">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Import
+                  <input
+                    type="file"
+                    id="file-upload-input"
+                    accept=".json"
+                    phx-hook="FileUploadHook"
+                    phx-target={@myself}
+                    phx-value-event="import_commands"
+                    class="hidden"
+                  />
+                </label>
+
+                <!-- Info Tooltip -->
+                <div class="relative group">
+                  <button
+                    type="button"
+                    class="text-neutral-400 hover:text-neutral-300 transition-colors"
+                    aria-label="Share Your Setup information"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                  <!-- Tooltip -->
+                  <div class="absolute right-0 top-full mt-2 w-80 bg-neutral-800 rounded-lg p-3 text-sm text-neutral-300 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div class="flex items-start gap-2">
+                      <svg class="w-4 h-4 mt-0.5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <p class="font-medium text-neutral-200 mb-1">• Share Your Setup</p>
+                        <p class="text-neutral-400">
+                          Export your learned commands to share with the community, or import commands from others with the same amplifier model.
+                          The JSON file includes all zones and their learned commands for easy setup sharing.
+                        </p>
+                      </div>
+                    </div>
+                    <!-- Tooltip arrow -->
+                    <div class="absolute bottom-full right-4 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-neutral-800"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zone count text below heading -->
+            <div class="text-sm text-neutral-400 mb-4">
               Learning commands for <%= length(@configured_zones) %> configured zones
             </div>
           </div>

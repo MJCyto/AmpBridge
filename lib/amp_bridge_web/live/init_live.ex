@@ -210,6 +210,13 @@ defmodule AmpBridgeWeb.InitLive do
   end
 
   @impl true
+  def handle_info({:download_file, %{content: content, filename: filename, content_type: content_type}}, socket) do
+    {:noreply,
+     socket
+     |> push_event("download_file", %{content: content, filename: filename, content_type: content_type})}
+  end
+
+  @impl true
   def handle_info({:command_learned, device_id, control_type, zone}, socket) do
     Logger.info("Command learned: #{control_type} for zone #{zone}")
 
