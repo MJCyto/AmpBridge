@@ -51,7 +51,10 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
       {:noreply, assign(socket, form_data: form_data, sources: [])}
     else
       count_int = String.to_integer(count)
-      sources = generate_sources(count_int)
+      existing_sources = socket.assigns.sources
+
+      # Preserve existing sources and add new ones if count increased
+      sources = update_sources_count(existing_sources, count_int)
 
       form_data = Map.put(socket.assigns.form_data, "source_count", count)
       form_data = Map.put(form_data, "sources", sources)
@@ -103,6 +106,7 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
               type="number"
               name="source_config[source_count]"
               value={@form_data["source_count"]}
+              phx-change="update_source_count"
               phx-blur="update_source_count"
               phx-target={@myself}
               min="1"
@@ -161,13 +165,33 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
     end
   end
 
-  defp generate_sources(count) do
-    Enum.map(0..(count - 1), fn index ->
-      %{
-        "name" => "",
-        "index" => index
-      }
-    end)
+  defp update_sources_count(existing_sources, new_count) do
+    existing_count = length(existing_sources)
+
+    cond do
+      new_count > existing_count ->
+        # Add new empty sources
+        new_sources = Enum.map(existing_count..(new_count - 1), fn index ->
+          %{
+            "name" => "",
+            "index" => index
+          }
+        end)
+        existing_sources ++ new_sources
+
+      new_count < existing_count ->
+        # Remove extra sources (keep first new_count sources)
+        existing_sources
+        |> Enum.take(new_count)
+        |> Enum.with_index()
+        |> Enum.map(fn {source, index} ->
+          Map.put(source, "index", index)
+        end)
+
+      true ->
+        # Count unchanged, return existing sources
+        existing_sources
+    end
   end
 
   defp validate_form(_form_data) do

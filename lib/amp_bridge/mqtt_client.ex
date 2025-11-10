@@ -7,8 +7,6 @@ defmodule AmpBridge.MQTTClient do
   require Logger
 
   alias AmpBridge.Devices
-  alias AmpBridge.CommandLearner
-  alias AmpBridge.ZoneManager
 
   @client_id "ampbridge_#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}"
   @base_topic "ampbridge/zones"
