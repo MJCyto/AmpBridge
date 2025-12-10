@@ -11,7 +11,6 @@ defmodule AmpBridge.MQTTClient do
   alias AmpBridge.ZoneManager
 
   @client_id "ampbridge_#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}"
-  @base_topic "ampbridge/zones"
 
   # Client API
 
@@ -42,6 +41,8 @@ defmodule AmpBridge.MQTTClient do
     mqtt_port = Keyword.get(opts, :port) || Keyword.get(mqtt_config, :port, 1885)
     mqtt_username = Keyword.get(opts, :username) || Keyword.get(mqtt_config, :username)
     mqtt_password = Keyword.get(opts, :password) || Keyword.get(mqtt_config, :password)
+    base_topic = Keyword.get(opts, :base_topic) || Keyword.get(mqtt_config, :base_topic, "ampbridge/zones")
+    keep_alive = Keyword.get(opts, :keep_alive) || Keyword.get(mqtt_config, :keep_alive, 60)
 
     Logger.info("Starting MQTT client connecting to #{mqtt_host}:#{mqtt_port}")
     connection_config = [
@@ -49,22 +50,25 @@ defmodule AmpBridge.MQTTClient do
       server: {Tortoise.Transport.Tcp, host: mqtt_host, port: mqtt_port},
       user_name: mqtt_username,
       password: mqtt_password,
-      keep_alive: 60,
+      keep_alive: keep_alive,
       handler: {AmpBridge.MQTTHandler, []},
       will: %Tortoise.Package.Publish{
-        topic: "#{@base_topic}/status",
+        topic: "#{base_topic}/status",
         payload: "offline",
         qos: 1,
         retain: true
       }
     ]
+
+    # Store base_topic in state for later use
+    state = %{base_topic: base_topic}
     case Tortoise.Connection.start_link(connection_config) do
       {:ok, pid} ->
-        subscribe_to_control_topics()
-        publish_status("online")
+        subscribe_to_control_topics(state.base_topic)
+        publish_status(state.base_topic, "online")
         publish_all_zones()
 
-        {:ok, %{connection_pid: pid, connected: true}}
+        {:ok, Map.put(state, :connection_pid, pid) |> Map.put(:connected, true)}
 
       {:error, reason} ->
         Logger.error("Failed to connect to MQTT broker: #{inspect(reason)}")
@@ -74,9 +78,9 @@ defmodule AmpBridge.MQTTClient do
   end
 
   @impl true
-  def handle_cast({:publish_zone_state, zone_id, state}, %{connected: true} = state_data) do
-    zone_topic = "#{@base_topic}/#{zone_id}"
-    publish_zone_attributes(zone_topic, zone_id, state)
+  def handle_cast({:publish_zone_state, zone_id, state}, %{connected: true, base_topic: base_topic} = state_data) do
+    zone_topic = "#{base_topic}/#{zone_id}"
+    publish_zone_attributes(base_topic, zone_topic, zone_id, state)
 
     {:noreply, state_data}
   end
@@ -88,13 +92,13 @@ defmodule AmpBridge.MQTTClient do
   end
 
   @impl true
-  def handle_cast(:publish_all_zones, %{connected: true} = state_data) do
+  def handle_cast(:publish_all_zones, %{connected: true, base_topic: base_topic} = state_data) do
     case load_all_zone_states() do
       {:ok, zones} ->
         Enum.each(zones, fn zone ->
-          publish_zone_attributes("#{@base_topic}/#{zone.id}", zone.id, zone)
+          publish_zone_attributes(base_topic, "#{base_topic}/#{zone.id}", zone.id, zone)
         end)
-        publish_discovery_info(zones)
+        publish_discovery_info(base_topic, zones)
 
       {:error, reason} ->
         Logger.error("Failed to load zone states for MQTT: #{reason}")
@@ -129,10 +133,10 @@ defmodule AmpBridge.MQTTClient do
   end
 
   @impl true
-  def handle_info({:tortoise, :connection, :connected}, state_data) do
+  def handle_info({:tortoise, :connection, :connected}, %{base_topic: base_topic} = state_data) do
     Logger.info("MQTT connected")
-    subscribe_to_control_topics()
-    publish_status("online")
+    subscribe_to_control_topics(base_topic)
+    publish_status(base_topic, "online")
     {:noreply, %{state_data | connected: true}}
   end
 
@@ -174,11 +178,48 @@ defmodule AmpBridge.MQTTClient do
 
   # Private functions
 
-  defp subscribe_to_control_topics do
-    for zone_id <- 0..7 do
-      volume_topic = "#{@base_topic}/#{zone_id}/volume/set"
-      mute_topic = "#{@base_topic}/#{zone_id}/mute/set"
-      source_topic = "#{@base_topic}/#{zone_id}/source/set"
+  defp get_active_device_id do
+    device_config = Application.get_env(:amp_bridge, :device, [])
+    Keyword.get(device_config, :default_device_id, 1)
+  end
+
+  defp get_zone_range do
+    case get_device() do
+      nil -> 0..7  # Fallback if no device configured
+      device ->
+        case device.zones do
+          nil -> 0..7
+          zones_map when is_map(zones_map) ->
+            zone_numbers = zones_map
+            |> Map.keys()
+            |> Enum.map(&String.to_integer/1)
+            |> Enum.filter(fn zone -> zone >= 0 end)
+            |> Enum.sort()
+
+            if length(zone_numbers) > 0 do
+              min_zone = List.first(zone_numbers)
+              max_zone = List.last(zone_numbers)
+              min_zone..max_zone
+            else
+              0..7
+            end
+          _ -> 0..7
+        end
+    end
+  end
+
+  defp get_device do
+    device_id = get_active_device_id()
+    Devices.get_device(device_id)
+  end
+
+  defp subscribe_to_control_topics(base_topic) do
+    zone_range = get_zone_range()
+
+    for zone_id <- zone_range do
+      volume_topic = "#{base_topic}/#{zone_id}/volume/set"
+      mute_topic = "#{base_topic}/#{zone_id}/mute/set"
+      source_topic = "#{base_topic}/#{zone_id}/source/set"
 
       Tortoise.Connection.subscribe(@client_id, volume_topic, qos: 1)
       Tortoise.Connection.subscribe(@client_id, mute_topic, qos: 1)
@@ -189,7 +230,10 @@ defmodule AmpBridge.MQTTClient do
   def handle_mqtt_message(%{topic: topic, payload: payload}) do
     Logger.info("Received MQTT message on #{topic}: #{payload}")
 
-    case parse_topic(topic) do
+    mqtt_config = Application.get_env(:amp_bridge, :mqtt, [])
+    base_topic = Keyword.get(mqtt_config, :base_topic, "ampbridge/zones")
+
+    case parse_topic(topic, base_topic) do
       {:zone_control, zone_id, action} ->
         handle_zone_control(zone_id, action, payload)
       _ ->
@@ -197,21 +241,53 @@ defmodule AmpBridge.MQTTClient do
     end
   end
 
-  defp parse_topic(topic) when is_binary(topic) do
-    case String.split(topic, "/") do
-      ["ampbridge", "zones", zone_id, action, "set"] ->
-        {:zone_control, String.to_integer(zone_id), action}
-      _ ->
-        :unknown
+  defp parse_topic(topic, base_topic) when is_binary(topic) do
+    base_topic_parts = String.split(base_topic, "/")
+    topic_parts = String.split(topic, "/")
+
+    # Check if topic matches pattern: {base_topic}/{zone_id}/{action}/set
+    # e.g., "ampbridge/zones/0/volume/set" with base_topic "ampbridge/zones"
+    if length(topic_parts) == length(base_topic_parts) + 3 do
+      # Extract the parts after base_topic
+      remaining_parts = Enum.drop(topic_parts, length(base_topic_parts))
+
+      case remaining_parts do
+        [zone_id_str, action, "set"] ->
+          case Integer.parse(zone_id_str) do
+            {zone_id, ""} ->
+              {:zone_control, zone_id, action}
+            _ ->
+              :unknown
+          end
+        _ ->
+          :unknown
+      end
+    else
+      :unknown
     end
   end
 
-  defp parse_topic(topic) when is_list(topic) do
-    case topic do
-      ["ampbridge", "zones", zone_id, action, "set"] ->
-        {:zone_control, String.to_integer(zone_id), action}
-      _ ->
-        :unknown
+  defp parse_topic(topic, base_topic) when is_list(topic) do
+    base_topic_parts = String.split(base_topic, "/")
+
+    # Check if topic matches pattern: {base_topic}/{zone_id}/{action}/set
+    if length(topic) == length(base_topic_parts) + 3 do
+      # Extract the parts after base_topic
+      remaining_parts = Enum.drop(topic, length(base_topic_parts))
+
+      case remaining_parts do
+        [zone_id_str, action, "set"] ->
+          case Integer.parse(zone_id_str) do
+            {zone_id, ""} ->
+              {:zone_control, zone_id, action}
+            _ ->
+              :unknown
+          end
+        _ ->
+          :unknown
+      end
+    else
+      :unknown
     end
   end
 
@@ -251,15 +327,14 @@ defmodule AmpBridge.MQTTClient do
     # Map source name to "Source X" format (exactly like dashboard expects)
     mapped_source = case payload do
       "Off" -> "Off"
-      "Echo" -> "Source 1"
-      "Server" -> "Source 2"
-      "TV" -> "Source 3"
-      "Bluetooth" -> "Source 4"
-      "Aux" -> "Source 5"
-      "CD" -> "Source 6"
-      "Tuner" -> "Source 7"
-      "Phono" -> "Source 8"
-      source when is_binary(source) -> source  # Already in correct format
+      source when is_binary(source) ->
+        # Check if it's already in "Source X" format
+        if String.match?(source, ~r/^Source \d+$/) do
+          source
+        else
+          # Look up custom source name in configured sources map
+          map_custom_source_to_source_x(source)
+        end
     end
 
     Logger.info("Mapped source '#{payload}' -> '#{mapped_source}'")
@@ -271,7 +346,7 @@ defmodule AmpBridge.MQTTClient do
     end
   end
 
-  defp publish_zone_attributes(zone_topic, _zone_id, zone) do
+  defp publish_zone_attributes(base_topic, zone_topic, _zone_id, zone) do
     Tortoise.publish(@client_id, "#{zone_topic}/volume", to_string(zone.volume), qos: 1, retain: true)
     mute_status = if zone.muted, do: "ON", else: "OFF"
     Tortoise.publish(@client_id, "#{zone_topic}/mute", mute_status, qos: 1, retain: true)
@@ -281,30 +356,34 @@ defmodule AmpBridge.MQTTClient do
     Tortoise.publish(@client_id, "#{zone_topic}/name", zone.name, qos: 1, retain: true)
   end
 
-  defp publish_status(status) do
-    Tortoise.publish(@client_id, "#{@base_topic}/status", status, qos: 1, retain: true)
+  defp publish_status(base_topic, status) do
+    Tortoise.publish(@client_id, "#{base_topic}/status", status, qos: 1, retain: true)
   end
 
-  defp publish_discovery_info(zones) do
+  defp publish_discovery_info(base_topic, zones) do
     Enum.each(zones, fn zone ->
-      publish_zone_discovery(zone)
+      publish_zone_discovery(base_topic, zone)
     end)
   end
 
-  defp publish_zone_discovery(zone) do
+  defp publish_zone_discovery(base_topic, zone) do
+    mqtt_config = Application.get_env(:amp_bridge, :mqtt, [])
+    manufacturer = Keyword.get(mqtt_config, :manufacturer, "AmpBridge")
+    model = Keyword.get(mqtt_config, :model, "Zone Controller")
+
     zone_id = zone.id
     zone_name = zone.name
     volume_config = %{
       "name" => "#{zone_name} Volume",
-      "state_topic" => "#{@base_topic}/#{zone_id}/volume",
+      "state_topic" => "#{base_topic}/#{zone_id}/volume",
       "unit_of_measurement" => "%",
       "device_class" => "volume_level",
       "unique_id" => "ampbridge_zone_#{zone_id}_volume",
       "device" => %{
         "identifiers" => ["ampbridge_zone_#{zone_id}"],
         "name" => zone_name,
-        "manufacturer" => "AmpBridge",
-        "model" => "Zone Controller"
+        "manufacturer" => manufacturer,
+        "model" => model
       }
     }
 
@@ -312,16 +391,16 @@ defmodule AmpBridge.MQTTClient do
                     Jason.encode!(volume_config), qos: 1, retain: true)
     mute_config = %{
       "name" => "#{zone_name} Mute",
-      "state_topic" => "#{@base_topic}/#{zone_id}/mute",
-      "command_topic" => "#{@base_topic}/#{zone_id}/mute/set",
+      "state_topic" => "#{base_topic}/#{zone_id}/mute",
+      "command_topic" => "#{base_topic}/#{zone_id}/mute/set",
       "payload_on" => "ON",
       "payload_off" => "OFF",
       "unique_id" => "ampbridge_zone_#{zone_id}_mute",
       "device" => %{
         "identifiers" => ["ampbridge_zone_#{zone_id}"],
         "name" => zone_name,
-        "manufacturer" => "AmpBridge",
-        "model" => "Zone Controller"
+        "manufacturer" => manufacturer,
+        "model" => model
       }
     }
 
@@ -331,7 +410,7 @@ defmodule AmpBridge.MQTTClient do
 
   defp load_all_zone_states do
     try do
-      device = AmpBridge.Devices.get_device(1)
+      device = get_device()
 
       if device && device.zones && map_size(device.zones) > 0 do
         zones_map = device.zones
@@ -348,24 +427,8 @@ defmodule AmpBridge.MQTTClient do
           |> Enum.sort()
 
         # Create source mapping from configured sources
-        # If sources_map is empty, use the same fallback as zone controller
-        effective_sources_map = if map_size(sources_map) > 0 do
-          sources_map
-        else
-          # Use the same fallback sources as zone controller
-          %{
-            "0" => %{"name" => "Echo"},
-            "1" => %{"name" => "Server"},
-            "2" => %{"name" => "Source 3"},
-            "3" => %{"name" => "Source 4"},
-            "4" => %{"name" => "Source 5"},
-            "5" => %{"name" => "Source 6"},
-            "6" => %{"name" => "Source 7"},
-            "7" => %{"name" => "Source 8"}
-          }
-        end
-
-        source_mapping = create_source_mapping(effective_sources_map)
+        # Use configured sources if available, otherwise empty map
+        source_mapping = create_source_mapping(sources_map)
 
         zones =
           zone_numbers
@@ -388,18 +451,9 @@ defmodule AmpBridge.MQTTClient do
 
         {:ok, zones}
       else
-        zones = [
-          %{id: 0, name: "Bedroom", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()},
-          %{id: 1, name: "Bathroom", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()},
-          %{id: 2, name: "Studio", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()},
-          %{id: 3, name: "Zone 4", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()},
-          %{id: 4, name: "Zone 5", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()},
-          %{id: 5, name: "Zone 6", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()},
-          %{id: 6, name: "Zone 7", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()},
-          %{id: 7, name: "Zone 8", volume: 50, muted: false, source: "Off", connected: check_adapters_connected()}
-        ]
-
-        {:ok, zones}
+        # No device or zones configured - return empty list
+        Logger.warning("No device or zones configured, returning empty zone list")
+        {:ok, []}
       end
     rescue
       error ->
@@ -453,6 +507,49 @@ defmodule AmpBridge.MQTTClient do
     end
   end
 
+  defp map_custom_source_to_source_x(custom_source_name) do
+    try do
+      device = get_device()
+
+      if device do
+        sources_map = device.sources || %{}
+
+        if map_size(sources_map) > 0 do
+          # Search through sources map to find matching custom name
+          sources_map
+          |> Map.keys()
+          |> Enum.sort()
+          |> Enum.with_index()
+          |> Enum.find_value(fn {key, index} ->
+            source_data = Map.get(sources_map, key)
+            source_name = Map.get(source_data, "name", "Source #{index + 1}")
+            if source_name == custom_source_name do
+              "Source #{index + 1}"
+            else
+              nil
+            end
+          end)
+          |> case do
+            nil ->
+              Logger.warning("Could not map custom source name '#{custom_source_name}' to 'Source X' format")
+              custom_source_name  # Return original if not found
+            mapped -> mapped
+          end
+        else
+          Logger.warning("No sources configured, cannot map custom source name '#{custom_source_name}'")
+          custom_source_name  # Return original if no sources configured
+        end
+      else
+        Logger.warning("No device configured, cannot map custom source name '#{custom_source_name}'")
+        custom_source_name  # Return original if no device
+      end
+    rescue
+      error ->
+        Logger.error("Failed to map custom source name '#{custom_source_name}': #{inspect(error)}")
+        custom_source_name  # Return original on error
+    end
+  end
+
   defp check_adapters_connected do
     try do
       connection_status = AmpBridge.SerialManager.get_connection_status()
@@ -464,7 +561,8 @@ defmodule AmpBridge.MQTTClient do
 
   defp update_zone_volume(zone_id, volume) do
     try do
-      device = AmpBridge.Devices.get_device!(1)
+      device_id = get_active_device_id()
+      device = AmpBridge.Devices.get_device!(device_id)
       current_volume_states = device.volume_states || %{}
       updated_volume_states = Map.put(current_volume_states, to_string(zone_id), volume)
 
@@ -531,7 +629,8 @@ defmodule AmpBridge.MQTTClient do
 
   defp update_zone_mute(zone_id, muted) do
     try do
-      device = AmpBridge.Devices.get_device!(1)
+      device_id = get_active_device_id()
+      device = AmpBridge.Devices.get_device!(device_id)
       current_mute_states = device.mute_states || %{}
       updated_mute_states = Map.put(current_mute_states, to_string(zone_id), muted)
 
@@ -588,7 +687,8 @@ defmodule AmpBridge.MQTTClient do
 
   defp update_zone_source_mqtt(zone_id, source) do
     try do
-      device = AmpBridge.Devices.get_device!(1)
+      device_id = get_active_device_id()
+      device = AmpBridge.Devices.get_device!(device_id)
 
       # Convert "Off" to nil for database storage
       stored_source = case source do
@@ -675,11 +775,14 @@ defmodule AmpBridge.MQTTClient do
 
   def publish_zone_update(zone_id) do
     Logger.info("publish_zone_update called for zone #{zone_id}")
+    mqtt_config = Application.get_env(:amp_bridge, :mqtt, [])
+    base_topic = Keyword.get(mqtt_config, :base_topic, "ampbridge/zones")
+
     case load_zone_state(zone_id) do
       {:ok, zone} ->
         Logger.info("Loaded zone state for zone #{zone_id}: #{inspect(zone)}")
-        zone_topic = "#{@base_topic}/#{zone_id}"
-        publish_zone_attributes(zone_topic, zone_id, zone)
+        zone_topic = "#{base_topic}/#{zone_id}"
+        publish_zone_attributes(base_topic, zone_topic, zone_id, zone)
         Logger.info("Published updated state for zone #{zone_id}")
       {:error, reason} ->
         Logger.error("Failed to load zone #{zone_id} state for MQTT update: #{reason}")
@@ -688,50 +791,37 @@ defmodule AmpBridge.MQTTClient do
 
   defp load_zone_state(zone_id) do
     try do
-      device = AmpBridge.Devices.get_device!(1)
+      device = get_device()
 
-      volume_states = device.volume_states || %{}
-      mute_states = device.mute_states || %{}
-      source_states = device.source_states || %{}
-      sources_map = device.sources || %{}
-      zones_map = device.zones || %{}
+      if device do
+        volume_states = device.volume_states || %{}
+        mute_states = device.mute_states || %{}
+        source_states = device.source_states || %{}
+        sources_map = device.sources || %{}
+        zones_map = device.zones || %{}
 
-      volume = Map.get(volume_states, to_string(zone_id), 0)
-      muted = Map.get(mute_states, to_string(zone_id), false)
-      raw_source = Map.get(source_states, to_string(zone_id), nil)
-      zone_name = get_zone_name(zones_map, zone_id)
+        volume = Map.get(volume_states, to_string(zone_id), 0)
+        muted = Map.get(mute_states, to_string(zone_id), false)
+        raw_source = Map.get(source_states, to_string(zone_id), nil)
+        zone_name = get_zone_name(zones_map, zone_id)
 
-      # Map source name using configured sources
-      # If sources_map is empty, use the same fallback as zone controller
-      effective_sources_map = if map_size(sources_map) > 0 do
-        sources_map
-      else
-        # Use the same fallback sources as zone controller
-        %{
-          "0" => %{"name" => "Echo"},
-          "1" => %{"name" => "Server"},
-          "2" => %{"name" => "Source 3"},
-          "3" => %{"name" => "Source 4"},
-          "4" => %{"name" => "Source 5"},
-          "5" => %{"name" => "Source 6"},
-          "6" => %{"name" => "Source 7"},
-          "7" => %{"name" => "Source 8"}
+        # Map source name using configured sources
+        source_mapping = create_source_mapping(sources_map)
+        source = map_source_name(raw_source, source_mapping)
+
+        zone = %{
+          id: zone_id,
+          volume: volume,
+          muted: muted,
+          source: source || "Off",
+          connected: true,
+          name: zone_name || "Zone #{zone_id + 1}"
         }
+
+        {:ok, zone}
+      else
+        {:error, "No device configured"}
       end
-
-      source_mapping = create_source_mapping(effective_sources_map)
-      source = map_source_name(raw_source, source_mapping)
-
-      zone = %{
-        id: zone_id,
-        volume: volume,
-        muted: muted,
-        source: source || "Off",
-        connected: true,
-        name: zone_name || "Zone #{zone_id + 1}"
-      }
-
-      {:ok, zone}
     rescue
       error ->
         Logger.error("Failed to load zone #{zone_id} state: #{inspect(error)}")
