@@ -21,14 +21,20 @@ defmodule AmpBridge.CommandQueueUnitTest do
     assert length(new_queue) == 1
 
     # Add second command for same zone/type (should replace)
-    command2 = %{command | id: "vol_0_75", params: %{volume: 75}, data: <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, 0x00, 0x4B, 0xA2, 0xF6>>}
+    command2 = %{
+      command
+      | id: "vol_0_75",
+        params: %{volume: 75},
+        data: <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, 0x00, 0x4B, 0xA2, 0xF6>>
+    }
 
     # Simulate replacement logic
-    filtered_queue = Enum.reject(new_queue, fn existing_command ->
-      existing_command.replaceable and
-      existing_command.zone == command2.zone and
-      existing_command.type == command2.type
-    end)
+    filtered_queue =
+      Enum.reject(new_queue, fn existing_command ->
+        existing_command.replaceable and
+          existing_command.zone == command2.zone and
+          existing_command.type == command2.type
+      end)
 
     final_queue = [command2 | filtered_queue]
     assert length(final_queue) == 1
@@ -42,11 +48,13 @@ defmodule AmpBridge.CommandQueueUnitTest do
 
     # Sort by priority
     priority_order = %{high: 0, normal: 1, low: 2}
-    sorted_queue = Enum.sort(mixed_queue, fn cmd1, cmd2 ->
-      priority1 = Map.get(priority_order, cmd1.priority || :normal, 1)
-      priority2 = Map.get(priority_order, cmd2.priority || :normal, 1)
-      priority1 <= priority2
-    end)
+
+    sorted_queue =
+      Enum.sort(mixed_queue, fn cmd1, cmd2 ->
+        priority1 = Map.get(priority_order, cmd1.priority || :normal, 1)
+        priority2 = Map.get(priority_order, cmd2.priority || :normal, 1)
+        priority1 <= priority2
+      end)
 
     # High priority should be first
     assert hd(sorted_queue).priority == :high
@@ -57,8 +65,10 @@ defmodule AmpBridge.CommandQueueUnitTest do
 
   test "CTS flow control simulation" do
     # Simulate CTS flow control logic
-    cts_timeout = 200  # milliseconds
-    _cts_check_interval = 10  # milliseconds
+    # milliseconds
+    cts_timeout = 200
+    # milliseconds
+    _cts_check_interval = 10
 
     # Simulate sending command
     command_sent = true
@@ -73,12 +83,14 @@ defmodule AmpBridge.CommandQueueUnitTest do
     _timeout_reached = false
 
     # Simulate waiting for CTS
-    Process.sleep(50)  # Simulate delay
+    # Simulate delay
+    Process.sleep(50)
 
     elapsed_time = System.monotonic_time(:millisecond) - start_time
     timeout_reached = elapsed_time >= cts_timeout
 
-    assert timeout_reached == false  # Should not timeout in 50ms
+    # Should not timeout in 50ms
+    assert timeout_reached == false
 
     IO.puts("✅ CTS flow control simulation tests passed!")
   end
@@ -101,7 +113,8 @@ defmodule AmpBridge.CommandQueueUnitTest do
 
     queue = [mute_cmd_1]
     new_queue = replace_command_in_queue(queue, mute_cmd_2)
-    assert length(new_queue) == 2  # Both should remain
+    # Both should remain
+    assert length(new_queue) == 2
 
     # Scenario 3: Don't replace commands for different zones
     vol_cmd_zone_0 = %{id: "vol_0_50", type: :volume, zone: 0, replaceable: true}
@@ -109,7 +122,8 @@ defmodule AmpBridge.CommandQueueUnitTest do
 
     queue = [vol_cmd_zone_0]
     new_queue = replace_command_in_queue(queue, vol_cmd_zone_1)
-    assert length(new_queue) == 2  # Both should remain
+    # Both should remain
+    assert length(new_queue) == 2
 
     IO.puts("✅ Command replacement scenario tests passed!")
   end
@@ -123,7 +137,8 @@ defmodule AmpBridge.CommandQueueUnitTest do
     assert match?({:error, _}, serial_result)
 
     # Test invalid command data
-    invalid_command = %{command | data: <<>>}  # Empty data
+    # Empty data
+    invalid_command = %{command | data: <<>>}
     assert byte_size(invalid_command.data) == 0
 
     # Test command with invalid zone
@@ -144,35 +159,62 @@ defmodule AmpBridge.CommandQueueUnitTest do
     ]
 
     # Simulate rapid replacement - only last command should remain
-    final_queue = Enum.reduce(commands, [], fn cmd, acc ->
-      replace_command_in_queue(acc, cmd)
-    end)
+    final_queue =
+      Enum.reduce(commands, [], fn cmd, acc ->
+        replace_command_in_queue(acc, cmd)
+      end)
 
     assert length(final_queue) == 1
     assert hd(final_queue).params.volume == 50
 
     # Test mixed priority commands for same zone
     mixed_commands = [
-      %{id: "vol_0_25", type: :volume, zone: 0, replaceable: true, priority: :low, params: %{volume: 25}},
-      %{id: "mute_0", type: :mute, zone: 0, replaceable: false, priority: :high, params: %{muted: true}},
-      %{id: "vol_0_75", type: :volume, zone: 0, replaceable: true, priority: :normal, params: %{volume: 75}}
+      %{
+        id: "vol_0_25",
+        type: :volume,
+        zone: 0,
+        replaceable: true,
+        priority: :low,
+        params: %{volume: 25}
+      },
+      %{
+        id: "mute_0",
+        type: :mute,
+        zone: 0,
+        replaceable: false,
+        priority: :high,
+        params: %{muted: true}
+      },
+      %{
+        id: "vol_0_75",
+        type: :volume,
+        zone: 0,
+        replaceable: true,
+        priority: :normal,
+        params: %{volume: 75}
+      }
     ]
 
     # High priority mute should be first, then normal volume (low priority volume should be replaced)
-    sorted_queue = Enum.reduce(mixed_commands, [], fn cmd, acc ->
-      replace_command_in_queue(acc, cmd)
-    end)
+    sorted_queue =
+      Enum.reduce(mixed_commands, [], fn cmd, acc ->
+        replace_command_in_queue(acc, cmd)
+      end)
 
     # Sort by priority after replacement
     priority_order = %{high: 0, normal: 1, low: 2}
-    final_sorted_queue = Enum.sort(sorted_queue, fn cmd1, cmd2 ->
-      priority1 = Map.get(priority_order, cmd1.priority || :normal, 1)
-      priority2 = Map.get(priority_order, cmd2.priority || :normal, 1)
-      priority1 <= priority2
-    end)
 
-    assert length(final_sorted_queue) == 2  # mute + volume (low priority volume replaced)
-    assert hd(final_sorted_queue).type == :mute  # High priority first
+    final_sorted_queue =
+      Enum.sort(sorted_queue, fn cmd1, cmd2 ->
+        priority1 = Map.get(priority_order, cmd1.priority || :normal, 1)
+        priority2 = Map.get(priority_order, cmd2.priority || :normal, 1)
+        priority1 <= priority2
+      end)
+
+    # mute + volume (low priority volume replaced)
+    assert length(final_sorted_queue) == 2
+    # High priority first
+    assert hd(final_sorted_queue).type == :mute
 
     IO.puts("✅ Edge cases and race conditions tests passed!")
   end
@@ -183,9 +225,10 @@ defmodule AmpBridge.CommandQueueUnitTest do
     assert length(empty_queue) == 0
 
     # Test queue with many commands
-    many_commands = for i <- 0..9 do
-      %{id: "vol_#{i}_50", type: :volume, zone: i, replaceable: true, params: %{volume: 50}}
-    end
+    many_commands =
+      for i <- 0..9 do
+        %{id: "vol_#{i}_50", type: :volume, zone: i, replaceable: true, params: %{volume: 50}}
+      end
 
     assert length(many_commands) == 10
 
@@ -210,7 +253,8 @@ defmodule AmpBridge.CommandQueueUnitTest do
     elapsed = System.monotonic_time(:millisecond) - start_time
 
     assert cts_immediate == true
-    assert elapsed < 10  # Should be immediate
+    # Should be immediate
+    assert elapsed < 10
 
     # Test CTS timeout scenario
     cts_timeout = 200
@@ -227,7 +271,8 @@ defmodule AmpBridge.CommandQueueUnitTest do
     # Test CTS check interval simulation
     check_interval = 10
     checks_per_timeout = div(cts_timeout, check_interval)
-    assert checks_per_timeout == 20  # Should check 20 times before timeout
+    # Should check 20 times before timeout
+    assert checks_per_timeout == 20
 
     IO.puts("✅ CTS flow control edge cases tests passed!")
   end
@@ -236,11 +281,12 @@ defmodule AmpBridge.CommandQueueUnitTest do
   defp replace_command_in_queue(queue, new_command) do
     if new_command.replaceable do
       # Remove any existing replaceable commands for the same zone and type
-      filtered_queue = Enum.reject(queue, fn existing_command ->
-        existing_command.replaceable and
-        existing_command.zone == new_command.zone and
-        existing_command.type == new_command.type
-      end)
+      filtered_queue =
+        Enum.reject(queue, fn existing_command ->
+          existing_command.replaceable and
+            existing_command.zone == new_command.zone and
+            existing_command.type == new_command.type
+        end)
 
       [new_command | filtered_queue]
     else

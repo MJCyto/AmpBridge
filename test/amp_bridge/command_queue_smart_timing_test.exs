@@ -8,11 +8,15 @@ defmodule AmpBridge.CommandQueueSmartTimingTest do
     Application.put_env(:amp_bridge, :test_mode, true)
 
     # Start CommandQueue with custom timing
-    {:ok, _} = CommandQueue.start_link([
-      cts_initial_delay: 30,  # 30ms initial delay
-      cts_check_interval: 5,  # 5ms check interval
-      cts_timeout: 100        # 100ms timeout
-    ])
+    {:ok, _} =
+      CommandQueue.start_link(
+        # 30ms initial delay
+        cts_initial_delay: 30,
+        # 5ms check interval
+        cts_check_interval: 5,
+        # 100ms timeout
+        cts_timeout: 100
+      )
 
     :ok
   end

@@ -78,9 +78,12 @@ defmodule AmpBridge.CommandQueue do
 
   @impl true
   def init(opts) do
-    cts_timeout = Keyword.get(opts, :cts_timeout, 200)  # milliseconds
-    cts_check_interval = Keyword.get(opts, :cts_check_interval, 10)  # milliseconds
-    cts_initial_delay = Keyword.get(opts, :cts_initial_delay, 50)  # milliseconds - wait for amp to start responding
+    # milliseconds
+    cts_timeout = Keyword.get(opts, :cts_timeout, 200)
+    # milliseconds
+    cts_check_interval = Keyword.get(opts, :cts_check_interval, 10)
+    # milliseconds - wait for amp to start responding
+    cts_initial_delay = Keyword.get(opts, :cts_initial_delay, 50)
 
     state = %__MODULE__{
       queue: [],
@@ -128,6 +131,7 @@ defmodule AmpBridge.CommandQueue do
       if length(state.queue) > 0 do
         send(self(), :process_next_command)
       end
+
       {:reply, :ok, new_state}
     end
   end
@@ -139,7 +143,14 @@ defmodule AmpBridge.CommandQueue do
       Process.cancel_timer(state.cts_timer)
     end
 
-    new_state = %{state | processing: false, current_adapter: nil, current_command: nil, cts_timer: nil}
+    new_state = %{
+      state
+      | processing: false,
+        current_adapter: nil,
+        current_command: nil,
+        cts_timer: nil
+    }
+
     {:reply, :ok, new_state}
   end
 
@@ -156,6 +167,7 @@ defmodule AmpBridge.CommandQueue do
       cts_timeout: state.cts_timeout,
       command_sent_at: state.command_sent_at
     }
+
     {:reply, status, state}
   end
 
@@ -170,15 +182,21 @@ defmodule AmpBridge.CommandQueue do
         :ok ->
           # Record when command was sent and start CTS monitoring immediately
           command_sent_at = System.monotonic_time(:millisecond)
-          Logger.debug("Command sent, starting CTS monitoring (timeout includes #{state.cts_initial_delay}ms initial delay)")
+
+          Logger.debug(
+            "Command sent, starting CTS monitoring (timeout includes #{state.cts_initial_delay}ms initial delay)"
+          )
+
           state_with_timestamp = %{new_state | command_sent_at: command_sent_at}
           new_state_with_timers = start_cts_monitoring(state_with_timestamp)
           {:noreply, new_state_with_timers}
+
         {:error, reason} ->
           Logger.error("Failed to send command: #{reason}")
           # Put command back at front of queue and try again later
           retry_state = %{new_state | queue: [command | rest]}
-          Process.send_after(self(), :process_next_command, 1000)  # Retry in 1 second
+          # Retry in 1 second
+          Process.send_after(self(), :process_next_command, 1000)
           {:noreply, retry_state}
       end
     else
@@ -192,7 +210,6 @@ defmodule AmpBridge.CommandQueue do
       end
     end
   end
-
 
   @impl true
   def handle_info(:check_cts_status, state) do
@@ -212,14 +229,19 @@ defmodule AmpBridge.CommandQueue do
             {:noreply, new_state}
           else
             # Still in initial delay period, CTS high might be from previous command
-            Logger.debug("CTS high but still in initial delay period (#{elapsed}ms < #{state.cts_initial_delay}ms), continuing to monitor")
+            Logger.debug(
+              "CTS high but still in initial delay period (#{elapsed}ms < #{state.cts_initial_delay}ms), continuing to monitor"
+            )
+
             timer = Process.send_after(self(), :check_cts_status, state.cts_check_interval)
             {:noreply, %{state | cts_timer: timer}}
           end
+
         {:ok, false} ->
           # CTS still low, check again
           timer = Process.send_after(self(), :check_cts_status, state.cts_check_interval)
           {:noreply, %{state | cts_timer: timer}}
+
         {:error, reason} ->
           Logger.error("Failed to check CTS status: #{reason}")
           # Give up on this command and move to next
@@ -249,11 +271,12 @@ defmodule AmpBridge.CommandQueue do
   defp add_command_to_queue(queue, command) do
     if command.replaceable do
       # Remove any existing replaceable commands for the same zone and type
-      filtered_queue = Enum.reject(queue, fn existing_command ->
-        existing_command.replaceable and
-        existing_command.zone == command.zone and
-        existing_command.type == command.type
-      end)
+      filtered_queue =
+        Enum.reject(queue, fn existing_command ->
+          existing_command.replaceable and
+            existing_command.zone == command.zone and
+            existing_command.type == command.type
+        end)
 
       # Add the new command at the appropriate position based on priority
       insert_command_by_priority([command | filtered_queue])
@@ -279,6 +302,7 @@ defmodule AmpBridge.CommandQueue do
       true ->
         # In test mode, simulate success
         :ok
+
       false ->
         # In production, use the real SerialManager
         # Send each chunk with the appropriate delay
@@ -292,6 +316,7 @@ defmodule AmpBridge.CommandQueue do
       true ->
         # In test mode, simulate successful send
         :ok
+
       false ->
         # In production, use SerialManager
         case Code.ensure_loaded(AmpBridge.SerialManager) do
@@ -300,6 +325,7 @@ defmodule AmpBridge.CommandQueue do
               :ok -> :ok
               {:error, reason} -> {:error, reason}
             end
+
           {:error, _} ->
             # SerialManager not available, simulate success
             :ok
@@ -312,11 +338,13 @@ defmodule AmpBridge.CommandQueue do
       true ->
         # In test mode, simulate CTS high
         {:ok, true}
+
       false ->
         # In production, use the real SerialManager CTS checking
         case Code.ensure_loaded(AmpBridge.SerialManager) do
           {:module, _} ->
             AmpBridge.SerialManager.check_cts_status(adapter)
+
           {:error, _} ->
             # SerialManager not available, simulate success
             {:ok, true}

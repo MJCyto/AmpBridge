@@ -23,10 +23,11 @@ defmodule AmpBridge.Release do
 
     # Start the repo
     for repo <- repos() do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, fn _repo ->
-        # Run the seeds script
-        Code.eval_file(Path.join([Application.app_dir(@app, "priv"), "repo", "seeds.exs"]))
-      end)
+      {:ok, _, _} =
+        Ecto.Migrator.with_repo(repo, fn _repo ->
+          # Run the seeds script
+          Code.eval_file(Path.join([Application.app_dir(@app, "priv"), "repo", "seeds.exs"]))
+        end)
     end
   end
 

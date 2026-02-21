@@ -27,9 +27,11 @@ defmodule AmpBridgeWeb.CommandLearningLive do
     else
       {:ok,
        socket
-       |> put_flash(:error, "No amplifier device found. Please run the initialization process first.")
-       |> assign(amp_id: amp_id, device: nil, last_command_learned: nil)
-      }
+       |> put_flash(
+         :error,
+         "No amplifier device found. Please run the initialization process first."
+       )
+       |> assign(amp_id: amp_id, device: nil, last_command_learned: nil)}
     end
   end
 
@@ -51,8 +53,7 @@ defmodule AmpBridgeWeb.CommandLearningLive do
          timestamp: DateTime.utc_now()
        }
      )
-     |> put_flash(:info, "Successfully learned #{control_type} command for zone #{zone + 1}")
-    }
+     |> put_flash(:info, "Successfully learned #{control_type} command for zone #{zone + 1}")}
   end
 
   @impl true

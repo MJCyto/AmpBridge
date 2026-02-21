@@ -23,7 +23,11 @@ defmodule AmpBridge.SerialRelay do
   end
 
   def start_relay_with_status(adapter_1_connected, adapter_2_connected) do
-    GenServer.call(__MODULE__, {:start_relay_with_status, adapter_1_connected, adapter_2_connected}, 1000)
+    GenServer.call(
+      __MODULE__,
+      {:start_relay_with_status, adapter_1_connected, adapter_2_connected},
+      1000
+    )
   end
 
   def stop_relay do
@@ -74,7 +78,11 @@ defmodule AmpBridge.SerialRelay do
   end
 
   @impl true
-  def handle_call({:start_relay_with_status, adapter_1_connected, adapter_2_connected}, _from, state) do
+  def handle_call(
+        {:start_relay_with_status, adapter_1_connected, adapter_2_connected},
+        _from,
+        state
+      ) do
     if state.relay_active do
       {:reply, {:error, :already_active}, state}
     else

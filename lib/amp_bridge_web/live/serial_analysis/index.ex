@@ -10,7 +10,6 @@ defmodule AmpBridgeWeb.SerialAnalysisLive.Index do
   @adapter_1 :adapter_1
   @adapter_2 :adapter_2
 
-
   @impl true
   def mount(_params, _session, socket) do
     socket = assign(socket, current_path: "/serial-analysis")

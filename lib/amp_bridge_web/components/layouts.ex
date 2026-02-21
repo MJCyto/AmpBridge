@@ -1,13 +1,12 @@
 defmodule AmpBridgeWeb.Layouts do
   use AmpBridgeWeb, :html
 
-  embed_templates "layouts/*"
+  embed_templates("layouts/*")
 
   @doc """
   Renders the root layout.
   """
   def root(assigns) do
-
     ~H"""
     <!DOCTYPE html>
     <html lang="en" class="[scrollbar-gutter:stable] bg-neutral-900">

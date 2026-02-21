@@ -428,9 +428,11 @@ defmodule AmpBridge.SerialManager do
         {:ok, _data} ->
           # CTS is high (ready to receive)
           {:reply, {:ok, true}, state}
+
         {:error, :eagain} ->
           # CTS is low (not ready)
           {:reply, {:ok, false}, state}
+
         {:error, reason} ->
           Logger.error("Failed to check CTS status for #{adapter}: #{reason}")
           {:reply, {:error, reason}, state}
@@ -626,7 +628,9 @@ defmodule AmpBridge.SerialManager do
       Logger.info("Auto-connection complete: #{connection_count}/2 adapters connected")
 
       if connection_count == 2 do
-        Logger.info("Both adapters connected during auto-connection - relay will start when needed")
+        Logger.info(
+          "Both adapters connected during auto-connection - relay will start when needed"
+        )
       end
 
       state
@@ -642,9 +646,11 @@ defmodule AmpBridge.SerialManager do
   defp maybe_auto_start_relay(state) do
     if state.adapter_1_connection && state.adapter_2_connection do
       Logger.info("Both adapters connected - auto-starting SerialRelay")
+
       case AmpBridge.SerialRelay.start_relay_with_status(true, true) do
         :ok ->
           Logger.info("SerialRelay auto-started successfully")
+
         {:error, reason} ->
           Logger.warning("Failed to auto-start SerialRelay: #{reason}")
       end

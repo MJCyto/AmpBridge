@@ -18,7 +18,8 @@ defmodule AmpBridgeWeb.Endpoint do
     at: "/",
     from: :amp_bridge,
     gzip: false,
-    only: ~w(js css images fonts assets favicon.ico robots.txt Ampbridge.svg Ampbridge-light.svg Ampbridge-dark.svg)
+    only:
+      ~w(js css images fonts assets favicon.ico robots.txt Ampbridge.svg Ampbridge-light.svg Ampbridge-dark.svg)
   )
 
   # Code reloading can be explicitly enabled under the

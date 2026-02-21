@@ -67,7 +67,12 @@ defmodule AmpBridgeWeb.AmpConfigComponent do
 
       # Save to database and broadcast
       save_sources_to_db(socket, sources)
-      Phoenix.PubSub.broadcast(AmpBridge.PubSub, "amp_config_updates", {:sources_updated, sources})
+
+      Phoenix.PubSub.broadcast(
+        AmpBridge.PubSub,
+        "amp_config_updates",
+        {:sources_updated, sources}
+      )
 
       {:noreply, assign(socket, form_data: form_data, sources: sources)}
     end
@@ -400,7 +405,8 @@ defmodule AmpBridgeWeb.AmpConfigComponent do
   end
 
   defp input_class(error) do
-    base_class = "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    base_class =
+      "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 
     if error do
       base_class <> " border-red-500"
@@ -458,26 +464,33 @@ defmodule AmpBridgeWeb.AmpConfigComponent do
 
   defp load_sources_from_device(device) do
     case device.sources do
-      nil -> []
+      nil ->
+        []
+
       sources_map when is_map(sources_map) ->
         sources_map
         |> Map.values()
         |> Enum.sort_by(& &1["index"])
-      _ -> []
+
+      _ ->
+        []
     end
   end
 
   defp load_zones_from_device(device) do
     case device.zones do
-      nil -> []
+      nil ->
+        []
+
       zones_map when is_map(zones_map) ->
         zones_map
         |> Map.values()
         |> Enum.sort_by(& &1["index"])
-      _ -> []
+
+      _ ->
+        []
     end
   end
-
 
   defp apply_source_defaults(sources) do
     sources
@@ -512,7 +525,6 @@ defmodule AmpBridgeWeb.AmpConfigComponent do
     |> Enum.with_index()
     |> Enum.into(%{}, fn {zone, index} -> {to_string(index), zone} end)
   end
-
 
   defp update_zones_for_sources(zones, sources) do
     source_count = length(sources)

@@ -163,7 +163,6 @@ defmodule AmpBridgeWeb.InitLive do
     end
   end
 
-
   @impl true
   def handle_info({:serial_data, data, _decoded, adapter_info}, socket) do
     if socket.assigns.auto_detection_active do
@@ -182,7 +181,9 @@ defmodule AmpBridgeWeb.InitLive do
             :adapter_2 -> {"Amp", "Controller"}
           end
 
-        Logger.info("Auto-detection: adapter=#{adapter}, adapter_1_role=#{adapter_1_role}, adapter_2_role=#{adapter_2_role}, adapter_1_name=#{adapter_1_name}, adapter_2_name=#{adapter_2_name}")
+        Logger.info(
+          "Auto-detection: adapter=#{adapter}, adapter_1_role=#{adapter_1_role}, adapter_2_role=#{adapter_2_role}, adapter_1_name=#{adapter_1_name}, adapter_2_name=#{adapter_2_name}"
+        )
 
         socket =
           assign(socket,
@@ -210,10 +211,17 @@ defmodule AmpBridgeWeb.InitLive do
   end
 
   @impl true
-  def handle_info({:download_file, %{content: content, filename: filename, content_type: content_type}}, socket) do
+  def handle_info(
+        {:download_file, %{content: content, filename: filename, content_type: content_type}},
+        socket
+      ) do
     {:noreply,
      socket
-     |> push_event("download_file", %{content: content, filename: filename, content_type: content_type})}
+     |> push_event("download_file", %{
+       content: content,
+       filename: filename,
+       content_type: content_type
+     })}
   end
 
   @impl true
@@ -477,7 +485,13 @@ defmodule AmpBridgeWeb.InitLive do
         case Devices.update_device(device, attrs) do
           {:ok, _updated_device} ->
             Logger.info("Adapter roles saved automatically after auto-detection")
-            {:noreply, put_flash(socket, :info, "Auto-detection complete! Adapter roles saved automatically.")}
+
+            {:noreply,
+             put_flash(
+               socket,
+               :info,
+               "Auto-detection complete! Adapter roles saved automatically."
+             )}
 
           {:error, changeset} ->
             Logger.error("Failed to save adapter roles automatically: #{inspect(changeset)}")
@@ -493,11 +507,12 @@ defmodule AmpBridgeWeb.InitLive do
         :ok
 
       device ->
-        attrs = case adapter do
-          "adapter_1" -> %{adapter_1_name: name}
-          "adapter_2" -> %{adapter_2_name: name}
-          _ -> %{}
-        end
+        attrs =
+          case adapter do
+            "adapter_1" -> %{adapter_1_name: name}
+            "adapter_2" -> %{adapter_2_name: name}
+            _ -> %{}
+          end
 
         case Devices.update_device(device, attrs) do
           {:ok, _updated_device} ->

@@ -48,7 +48,7 @@ defmodule AmpBridge.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
+      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build", "install_hooks"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
@@ -60,7 +60,8 @@ defmodule AmpBridge.MixProject do
       "assets.watch": ["cmd npm run watch --prefix assets"],
       "copy.static": [
         "cmd mkdir -p priv/static/assets/icons && cp -r assets/static/icons/* priv/static/assets/icons/"
-      ]
+      ],
+      install_hooks: ["install_hooks"]
     ]
   end
 end

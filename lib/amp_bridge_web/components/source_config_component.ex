@@ -43,7 +43,11 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
     {:noreply, assign(socket, form_data: form_data, errors: errors)}
   end
 
-  def handle_event("update_source_count", %{"source_config" => %{"source_count" => count}}, socket) do
+  def handle_event(
+        "update_source_count",
+        %{"source_config" => %{"source_count" => count}},
+        socket
+      ) do
     if count == "" do
       form_data = Map.put(socket.assigns.form_data, "source_count", "")
       # Broadcast the change
@@ -61,7 +65,12 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
 
       # Save to database and broadcast
       save_sources_to_db(socket, sources)
-      Phoenix.PubSub.broadcast(AmpBridge.PubSub, "source_config_updates", {:sources_updated, sources})
+
+      Phoenix.PubSub.broadcast(
+        AmpBridge.PubSub,
+        "source_config_updates",
+        {:sources_updated, sources}
+      )
 
       {:noreply, assign(socket, form_data: form_data, sources: sources)}
     end
@@ -86,7 +95,12 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
 
     # Save to database and broadcast
     save_sources_to_db(socket, updated_sources)
-    Phoenix.PubSub.broadcast(AmpBridge.PubSub, "source_config_updates", {:sources_updated, updated_sources})
+
+    Phoenix.PubSub.broadcast(
+      AmpBridge.PubSub,
+      "source_config_updates",
+      {:sources_updated, updated_sources}
+    )
 
     {:noreply, assign(socket, form_data: form_data, sources: updated_sources)}
   end
@@ -156,7 +170,8 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
   end
 
   defp input_class(error) do
-    base_class = "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    base_class =
+      "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 
     if error do
       base_class <> " border-red-500"
@@ -171,12 +186,14 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
     cond do
       new_count > existing_count ->
         # Add new empty sources
-        new_sources = Enum.map(existing_count..(new_count - 1), fn index ->
-          %{
-            "name" => "",
-            "index" => index
-          }
-        end)
+        new_sources =
+          Enum.map(existing_count..(new_count - 1), fn index ->
+            %{
+              "name" => "",
+              "index" => index
+            }
+          end)
+
         existing_sources ++ new_sources
 
       new_count < existing_count ->
@@ -219,12 +236,16 @@ defmodule AmpBridgeWeb.SourceConfigComponent do
 
   defp load_sources_from_device(device) do
     case device.sources do
-      nil -> []
+      nil ->
+        []
+
       sources_map when is_map(sources_map) ->
         sources_map
         |> Map.values()
         |> Enum.sort_by(& &1["index"])
-      _ -> []
+
+      _ ->
+        []
     end
   end
 

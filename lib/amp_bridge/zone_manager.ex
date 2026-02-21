@@ -310,9 +310,11 @@ defmodule AmpBridge.ZoneManager do
       volume_byte2 = encoding_formula - clamped_percentage
       command_bytes = [0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, zone, volume_byte1, volume_byte2]
       checksum = calculate_checksum(command_bytes)
-      command_data = create_zone_specific_chunks(zone, volume_byte1, volume_byte2, checksum)
-      |> Enum.map(fn {chunk, _delay} -> chunk end)
-      |> Enum.join()
+
+      command_data =
+        create_zone_specific_chunks(zone, volume_byte1, volume_byte2, checksum)
+        |> Enum.map(fn {chunk, _delay} -> chunk end)
+        |> Enum.join()
 
       # Create and enqueue command
       command = Command.volume(ui_zone, clamped_percentage, command_data)
@@ -373,9 +375,10 @@ defmodule AmpBridge.ZoneManager do
         ui_zone = zone - 1
 
         # Create mute command data
-        command_data = chunks
-        |> Enum.map(fn {chunk, _delay} -> chunk end)
-        |> Enum.join()
+        command_data =
+          chunks
+          |> Enum.map(fn {chunk, _delay} -> chunk end)
+          |> Enum.join()
 
         # Create and enqueue command
         command = Command.mute(ui_zone, true, command_data)
@@ -403,9 +406,10 @@ defmodule AmpBridge.ZoneManager do
         ui_zone = zone - 1
 
         # Create unmute command data
-        command_data = chunks
-        |> Enum.map(fn {chunk, _delay} -> chunk end)
-        |> Enum.join()
+        command_data =
+          chunks
+          |> Enum.map(fn {chunk, _delay} -> chunk end)
+          |> Enum.join()
 
         # Create and enqueue command
         command = Command.mute(ui_zone, false, command_data)
@@ -433,9 +437,10 @@ defmodule AmpBridge.ZoneManager do
         ui_zone = zone - 1
 
         # Create source command data
-        command_data = chunks
-        |> Enum.map(fn {chunk, _delay} -> chunk end)
-        |> Enum.join()
+        command_data =
+          chunks
+          |> Enum.map(fn {chunk, _delay} -> chunk end)
+          |> Enum.join()
 
         # Create and enqueue command
         command = Command.source(ui_zone, source_index, command_data)

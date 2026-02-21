@@ -291,14 +291,17 @@ defmodule AmpBridgeWeb.ZoneController do
 
   defp get_zone_name(zones_map, zone) do
     # Get the configured zone numbers and sort them
-    configured_zones = zones_map
-    |> Map.keys()
-    |> Enum.map(&String.to_integer/1)
-    |> Enum.sort()
+    configured_zones =
+      zones_map
+      |> Map.keys()
+      |> Enum.map(&String.to_integer/1)
+      |> Enum.sort()
 
     # Map 0-based zone index to the corresponding configured zone number
     case Enum.at(configured_zones, zone) do
-      nil -> nil
+      nil ->
+        nil
+
       zone_number ->
         case Map.get(zones_map, to_string(zone_number)) do
           %{"name" => name} when is_binary(name) and name != "" -> name
@@ -471,6 +474,7 @@ defmodule AmpBridgeWeb.ZoneController do
       case SerialManager.send_command(adapter, chunk) do
         :ok ->
           Logger.debug("Sent #{command_type} chunk: #{inspect(chunk)}")
+
         {:error, reason} ->
           Logger.error("Failed to send #{command_type} chunk: #{reason}")
       end
@@ -482,6 +486,7 @@ defmodule AmpBridgeWeb.ZoneController do
       case load_zone_state(zone_num) do
         {:ok, zone} ->
           AmpBridge.MQTTClient.publish_zone_state(zone_num, zone)
+
         {:error, _reason} ->
           Logger.warning("Failed to load zone state for MQTT update: #{zone_num}")
       end
@@ -510,11 +515,17 @@ defmodule AmpBridgeWeb.ZoneController do
 
   defp map_source_name(raw_source, source_mapping) do
     case raw_source do
-      nil -> nil
-      "Off" -> nil
+      nil ->
+        nil
+
+      "Off" ->
+        nil
+
       source when is_binary(source) ->
         Map.get(source_mapping, source, source)
-      _ -> nil
+
+      _ ->
+        nil
     end
   end
 

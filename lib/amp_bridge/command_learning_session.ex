@@ -182,23 +182,27 @@ defmodule AmpBridge.CommandLearningSession do
     # Convert JSON back to hex values
     case Jason.decode(hex_array_json) do
       {:ok, base64_array} ->
-        hex_values = Enum.map(base64_array, fn base64_binary ->
-          case Base.decode64(base64_binary) do
-            {:ok, binary} -> :binary.bin_to_list(binary) |> hd()
-            {:error, _} -> 0
-          end
-        end)
+        hex_values =
+          Enum.map(base64_array, fn base64_binary ->
+            case Base.decode64(base64_binary) do
+              {:ok, binary} -> :binary.bin_to_list(binary) |> hd()
+              {:error, _} -> 0
+            end
+          end)
 
         case state.control_type do
           "mute" ->
             HexCommandManager.update_command(state.zone, :mute, hex_values)
+
           "unmute" ->
             HexCommandManager.update_command(state.zone, :unmute, hex_values)
+
           _ ->
             # For other control types, store in learned_commands table
             Logger.info("Storing #{state.control_type} command in learned_commands table")
             store_in_learned_commands_table(state, hex_values)
         end
+
       {:error, _} ->
         {:error, :invalid_json}
     end
@@ -223,41 +227,62 @@ defmodule AmpBridge.CommandLearningSession do
     }
 
     # Add optional fields
-    attrs = if source_index = Keyword.get(state.opts, :source_index) do
-      Map.put(attrs, :source_index, source_index)
-    else
-      attrs
-    end
+    attrs =
+      if source_index = Keyword.get(state.opts, :source_index) do
+        Map.put(attrs, :source_index, source_index)
+      else
+        attrs
+      end
 
-    attrs = if volume_level = Keyword.get(state.opts, :volume_level) do
-      Map.put(attrs, :volume_level, volume_level)
-    else
-      attrs
-    end
+    attrs =
+      if volume_level = Keyword.get(state.opts, :volume_level) do
+        Map.put(attrs, :volume_level, volume_level)
+      else
+        attrs
+      end
 
     # Check if a command already exists for this device, control_type, zone, and options
-    existing_command = LearnedCommands.get_command(state.device_id, state.control_type, state.zone, state.opts)
+    existing_command =
+      LearnedCommands.get_command(state.device_id, state.control_type, state.zone, state.opts)
 
     case existing_command do
       nil ->
         # No existing command, create a new one
         case LearnedCommands.create_command(attrs) do
           {:ok, learned_command} ->
-            Logger.info("Successfully created new #{state.control_type} command in learned_commands table")
+            Logger.info(
+              "Successfully created new #{state.control_type} command in learned_commands table"
+            )
+
             {:ok, learned_command}
+
           {:error, changeset} ->
-            Logger.error("Failed to create command in learned_commands: #{inspect(changeset.errors)}")
+            Logger.error(
+              "Failed to create command in learned_commands: #{inspect(changeset.errors)}"
+            )
+
             {:error, changeset}
         end
+
       existing ->
         # Command exists, update it instead of creating a duplicate
-        Logger.info("Command already exists, updating existing #{state.control_type} command (ID: #{existing.id})")
+        Logger.info(
+          "Command already exists, updating existing #{state.control_type} command (ID: #{existing.id})"
+        )
+
         case LearnedCommands.update_command(existing, attrs) do
           {:ok, learned_command} ->
-            Logger.info("Successfully updated #{state.control_type} command in learned_commands table")
+            Logger.info(
+              "Successfully updated #{state.control_type} command in learned_commands table"
+            )
+
             {:ok, learned_command}
+
           {:error, changeset} ->
-            Logger.error("Failed to update command in learned_commands: #{inspect(changeset.errors)}")
+            Logger.error(
+              "Failed to update command in learned_commands: #{inspect(changeset.errors)}"
+            )
+
             {:error, changeset}
         end
     end

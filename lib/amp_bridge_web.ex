@@ -17,7 +17,9 @@ defmodule AmpBridgeWeb do
   those functions here.
   """
 
-  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt Ampbridge.svg Ampbridge-light.svg Ampbridge-dark.svg)
+  def static_paths,
+    do:
+      ~w(assets fonts images favicon.ico robots.txt Ampbridge.svg Ampbridge-light.svg Ampbridge-dark.svg)
 
   def router do
     quote do

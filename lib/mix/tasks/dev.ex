@@ -6,13 +6,13 @@ defmodule Mix.Tasks.Dev do
   def run(_args) do
     # Build assets first
     Mix.Task.run("assets.build")
-    
+
     # Start webpack in watch mode in the background
     webpack_pid = start_webpack_watch()
-    
+
     # Start Phoenix server
     Mix.Task.run("phx.server")
-    
+
     # Clean up webpack when server stops
     cleanup_webpack(webpack_pid)
   end

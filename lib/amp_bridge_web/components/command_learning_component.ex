@@ -18,8 +18,9 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
     device = AmpBridge.Devices.get_device(assigns.amp_id)
 
     # Check if we need to refresh learned commands (when last_command_learned changes)
-    should_refresh = Map.has_key?(assigns, :last_command_learned) &&
-                     assigns.last_command_learned != Map.get(socket.assigns, :last_command_learned)
+    should_refresh =
+      Map.has_key?(assigns, :last_command_learned) &&
+        assigns.last_command_learned != Map.get(socket.assigns, :last_command_learned)
 
     socket =
       if device && device.zones && map_size(device.zones) > 0 do
@@ -45,23 +46,26 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
           end)
 
         # Load learned commands from database (refresh if needed)
-        learned_commands = if should_refresh do
-          Logger.info("Refreshing learned commands due to new command learned")
-          load_learned_commands(assigns.amp_id)
-        else
-          # Always load learned commands on initial render or if not cached
-          case Map.get(socket.assigns, :learned_commands) do
-            nil ->
-              Logger.info("Loading learned commands for first time")
-              load_learned_commands(assigns.amp_id)
-            commands when is_list(commands) and length(commands) > 0 ->
-              Logger.info("Using cached learned commands (#{length(commands)} commands)")
-              commands
-            _ ->
-              Logger.info("Cached learned commands empty, loading from database")
-              load_learned_commands(assigns.amp_id)
+        learned_commands =
+          if should_refresh do
+            Logger.info("Refreshing learned commands due to new command learned")
+            load_learned_commands(assigns.amp_id)
+          else
+            # Always load learned commands on initial render or if not cached
+            case Map.get(socket.assigns, :learned_commands) do
+              nil ->
+                Logger.info("Loading learned commands for first time")
+                load_learned_commands(assigns.amp_id)
+
+              commands when is_list(commands) and length(commands) > 0 ->
+                Logger.info("Using cached learned commands (#{length(commands)} commands)")
+                commands
+
+              _ ->
+                Logger.info("Cached learned commands empty, loading from database")
+                load_learned_commands(assigns.amp_id)
+            end
           end
-        end
 
         assign(
           socket,
@@ -70,31 +74,41 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
           |> Map.put(:configured_zones, zone_numbers)
           |> Map.put(:configured_sources, sources_list)
           |> Map.put(:learned_commands, learned_commands)
-          |> Map.put(:learning_state, %{})  # Track which buttons are learning
+          # Track which buttons are learning
+          |> Map.put(:learning_state, %{})
         )
       else
         # Fallback to default zones 0-7 if no configuration (0-based)
-        Logger.info("CommandLearningComponent: No device zones configured, using default zones 0-7")
+        Logger.info(
+          "CommandLearningComponent: No device zones configured, using default zones 0-7"
+        )
+
         default_zones = [0, 1, 2, 3, 4, 5, 6, 7]
 
         # Load learned commands from database (refresh if needed)
-        learned_commands = if should_refresh do
-          Logger.info("Refreshing learned commands due to new command learned")
-          load_learned_commands(assigns.amp_id)
-        else
-          # Always load learned commands on initial render or if not cached
-          case Map.get(socket.assigns, :learned_commands) do
-            nil ->
-              Logger.info("Loading learned commands for first time (fallback)")
-              load_learned_commands(assigns.amp_id)
-            commands when is_list(commands) and length(commands) > 0 ->
-              Logger.info("Using cached learned commands (#{length(commands)} commands) (fallback)")
-              commands
-            _ ->
-              Logger.info("Cached learned commands empty, loading from database (fallback)")
-              load_learned_commands(assigns.amp_id)
+        learned_commands =
+          if should_refresh do
+            Logger.info("Refreshing learned commands due to new command learned")
+            load_learned_commands(assigns.amp_id)
+          else
+            # Always load learned commands on initial render or if not cached
+            case Map.get(socket.assigns, :learned_commands) do
+              nil ->
+                Logger.info("Loading learned commands for first time (fallback)")
+                load_learned_commands(assigns.amp_id)
+
+              commands when is_list(commands) and length(commands) > 0 ->
+                Logger.info(
+                  "Using cached learned commands (#{length(commands)} commands) (fallback)"
+                )
+
+                commands
+
+              _ ->
+                Logger.info("Cached learned commands empty, loading from database (fallback)")
+                load_learned_commands(assigns.amp_id)
+            end
           end
-        end
 
         assign(
           socket,
@@ -103,7 +117,8 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
           |> Map.put(:configured_zones, default_zones)
           |> Map.put(:configured_sources, [])
           |> Map.put(:learned_commands, learned_commands)
-          |> Map.put(:learning_state, %{})  # Track which buttons are learning
+          # Track which buttons are learning
+          |> Map.put(:learning_state, %{})
         )
       end
 
@@ -121,7 +136,8 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
     total_commands = Map.get(export_data, "metadata") |> Map.get("total_commands", 0)
 
     if total_commands == 0 do
-      {:noreply, put_flash(socket, :warning, "No commands found to export. Learn some commands first!")}
+      {:noreply,
+       put_flash(socket, :warning, "No commands found to export. Learn some commands first!")}
     else
       # Convert to JSON
       case Jason.encode(export_data, pretty: true) do
@@ -132,14 +148,23 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
 
           # Send file download event to parent LiveView and push event directly
           parent_pid = socket.root_pid
+
           if parent_pid do
-            send(parent_pid, {:download_file, %{content: json_string, filename: filename, content_type: "application/json"}})
+            send(
+              parent_pid,
+              {:download_file,
+               %{content: json_string, filename: filename, content_type: "application/json"}}
+            )
           end
 
           {:noreply,
            socket
            |> put_flash(:info, "Commands exported successfully! (#{total_commands} commands)")
-           |> push_event("download_file", %{content: json_string, filename: filename, content_type: "application/json"})}
+           |> push_event("download_file", %{
+             content: json_string,
+             filename: filename,
+             content_type: "application/json"
+           })}
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to export commands. Please try again.")}
@@ -155,16 +180,19 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
     case AmpBridge.LearnedCommands.import_device_commands(device_id, content) do
       {:ok, result} ->
         message = "Successfully imported #{result.successful_imports} commands"
-        message = if result.failed_imports > 0 do
-          message <> " (#{result.failed_imports} failed)"
-        else
-          message
-        end
+
+        message =
+          if result.failed_imports > 0 do
+            message <> " (#{result.failed_imports} failed)"
+          else
+            message
+          end
 
         {:noreply,
          socket
          |> put_flash(:info, message)
-         |> assign(last_command_learned: %{timestamp: DateTime.utc_now()})}  # Trigger refresh
+         # Trigger refresh
+         |> assign(last_command_learned: %{timestamp: DateTime.utc_now()})}
 
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, "Import failed: #{reason}")}
@@ -250,18 +278,21 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
     Logger.info("CommandLearningComponent: Command learned - #{control_type} for zone #{zone}")
 
     # Clear learning state for this command
-    learning_key = case control_type do
-      "mute" -> "mute_#{zone}"
-      "unmute" -> "unmute_#{zone}"
-      "turn_off" -> "turn_off_#{zone}"
-      _ -> nil  # For other types, we'd need more info to construct the key
-    end
+    learning_key =
+      case control_type do
+        "mute" -> "mute_#{zone}"
+        "unmute" -> "unmute_#{zone}"
+        "turn_off" -> "turn_off_#{zone}"
+        # For other types, we'd need more info to construct the key
+        _ -> nil
+      end
 
-    updated_learning_state = if learning_key do
-      Map.delete(socket.assigns.learning_state, learning_key)
-    else
-      socket.assigns.learning_state
-    end
+    updated_learning_state =
+      if learning_key do
+        Map.delete(socket.assigns.learning_state, learning_key)
+      else
+        socket.assigns.learning_state
+      end
 
     {:noreply, assign(socket, :learning_state, updated_learning_state)}
   end
@@ -612,7 +643,6 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
     end
   end
 
-
   # Helper function to get zone name from device config
   defp get_zone_name(device_config, zone) do
     if device_config && device_config.zones do
@@ -654,10 +684,13 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
     other_commands = load_commands_from_learned_commands(device_id)
 
     # Combine both lists and sort by learned_at (most recent first)
-    all_commands = (serial_commands ++ other_commands)
-    |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
+    all_commands =
+      (serial_commands ++ other_commands)
+      |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
 
-    Logger.info("Loaded #{length(serial_commands)} serial commands + #{length(other_commands)} learned commands = #{length(all_commands)} total for device #{device_id}")
+    Logger.info(
+      "Loaded #{length(serial_commands)} serial commands + #{length(other_commands)} learned commands = #{length(all_commands)} total for device #{device_id}"
+    )
 
     all_commands
   end
@@ -677,72 +710,90 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
       zone_commands = []
 
       # Process mute command if it exists
-      mute_commands = if serial_command.mute != "[]" do
-        case Jason.decode(serial_command.mute) do
-          {:ok, mute_array} ->
-            hex_values = Enum.map(mute_array, fn base64_binary ->
-              case Base.decode64(base64_binary) do
-                {:ok, binary} -> :binary.bin_to_list(binary) |> hd()
-                {:error, _} -> 0
-              end
-            end)
-            format_hex_sequence_from_values(hex_values)
-          {:error, _} -> "Invalid mute data"
+      mute_commands =
+        if serial_command.mute != "[]" do
+          case Jason.decode(serial_command.mute) do
+            {:ok, mute_array} ->
+              hex_values =
+                Enum.map(mute_array, fn base64_binary ->
+                  case Base.decode64(base64_binary) do
+                    {:ok, binary} -> :binary.bin_to_list(binary) |> hd()
+                    {:error, _} -> 0
+                  end
+                end)
+
+              format_hex_sequence_from_values(hex_values)
+
+            {:error, _} ->
+              "Invalid mute data"
+          end
+        else
+          nil
         end
-      else
-        nil
-      end
 
       # Process unmute command if it exists
-      unmute_commands = if serial_command.unmute != "[]" do
-        case Jason.decode(serial_command.unmute) do
-          {:ok, unmute_array} ->
-            hex_values = Enum.map(unmute_array, fn base64_binary ->
-              case Base.decode64(base64_binary) do
-                {:ok, binary} -> :binary.bin_to_list(binary) |> hd()
-                {:error, _} -> 0
-              end
-            end)
-            format_hex_sequence_from_values(hex_values)
-          {:error, _} -> "Invalid unmute data"
+      unmute_commands =
+        if serial_command.unmute != "[]" do
+          case Jason.decode(serial_command.unmute) do
+            {:ok, unmute_array} ->
+              hex_values =
+                Enum.map(unmute_array, fn base64_binary ->
+                  case Base.decode64(base64_binary) do
+                    {:ok, binary} -> :binary.bin_to_list(binary) |> hd()
+                    {:error, _} -> 0
+                  end
+                end)
+
+              format_hex_sequence_from_values(hex_values)
+
+            {:error, _} ->
+              "Invalid unmute data"
+          end
+        else
+          nil
         end
-      else
-        nil
-      end
 
       # Add mute command if it exists
-      zone_commands = if mute_commands do
-        [%{
-          control_type: "mute",
-          zone: zone,
-          source_index: nil,
-          volume_level: nil,
-          controller_sequence: mute_commands,
-          amp_sequence: "Not available",
-          learned_at: serial_command.updated_at,
-          zone_name: "Zone #{zone + 1}",
-          source_name: nil
-        } | zone_commands]
-      else
-        zone_commands
-      end
+      zone_commands =
+        if mute_commands do
+          [
+            %{
+              control_type: "mute",
+              zone: zone,
+              source_index: nil,
+              volume_level: nil,
+              controller_sequence: mute_commands,
+              amp_sequence: "Not available",
+              learned_at: serial_command.updated_at,
+              zone_name: "Zone #{zone + 1}",
+              source_name: nil
+            }
+            | zone_commands
+          ]
+        else
+          zone_commands
+        end
 
       # Add unmute command if it exists
-      zone_commands = if unmute_commands do
-        [%{
-          control_type: "unmute",
-          zone: zone,
-          source_index: nil,
-          volume_level: nil,
-          controller_sequence: unmute_commands,
-          amp_sequence: "Not available",
-          learned_at: serial_command.updated_at,
-          zone_name: "Zone #{zone + 1}",
-          source_name: nil
-        } | zone_commands]
-      else
-        zone_commands
-      end
+      zone_commands =
+        if unmute_commands do
+          [
+            %{
+              control_type: "unmute",
+              zone: zone,
+              source_index: nil,
+              volume_level: nil,
+              controller_sequence: unmute_commands,
+              amp_sequence: "Not available",
+              learned_at: serial_command.updated_at,
+              zone_name: "Zone #{zone + 1}",
+              source_name: nil
+            }
+            | zone_commands
+          ]
+        else
+          zone_commands
+        end
 
       learned_commands ++ zone_commands
     end
@@ -775,6 +826,7 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
 
   defp format_hex_sequence_from_binary(nil), do: "Not learned"
   defp format_hex_sequence_from_binary(<<>>), do: "Not learned"
+
   defp format_hex_sequence_from_binary(sequence) do
     sequence
     |> :binary.bin_to_list()
@@ -817,5 +869,4 @@ defmodule AmpBridgeWeb.CommandLearningComponent do
     |> Enum.join(" ")
     |> String.upcase()
   end
-
 end

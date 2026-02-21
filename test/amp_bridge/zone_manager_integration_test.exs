@@ -28,7 +28,8 @@ defmodule AmpBridge.ZoneManagerIntegrationTest do
 
     command = hd(queue)
     assert command.type == :volume
-    assert command.zone == 0  # 1-based zone converted to 0-based
+    # 1-based zone converted to 0-based
+    assert command.zone == 0
     assert command.params.volume == 50
     assert command.replaceable == true
   end
@@ -44,7 +45,8 @@ defmodule AmpBridge.ZoneManagerIntegrationTest do
 
     command = hd(queue)
     assert command.type == :mute
-    assert command.zone == 0  # 1-based zone converted to 0-based
+    # 1-based zone converted to 0-based
+    assert command.zone == 0
     assert command.params.muted == true
     assert command.replaceable == false
     assert command.priority == :high
@@ -61,7 +63,8 @@ defmodule AmpBridge.ZoneManagerIntegrationTest do
 
     command = hd(queue)
     assert command.type == :mute
-    assert command.zone == 0  # 1-based zone converted to 0-based
+    # 1-based zone converted to 0-based
+    assert command.zone == 0
     assert command.params.muted == false
     assert command.replaceable == false
     assert command.priority == :high
@@ -78,7 +81,8 @@ defmodule AmpBridge.ZoneManagerIntegrationTest do
 
     command = hd(queue)
     assert command.type == :source
-    assert command.zone == 0  # 1-based zone converted to 0-based
+    # 1-based zone converted to 0-based
+    assert command.zone == 0
     assert command.params.source == 0
     assert command.replaceable == false
     assert command.priority == :normal
@@ -109,8 +113,10 @@ defmodule AmpBridge.ZoneManagerIntegrationTest do
 
     # Check that both zones are represented
     zones = Enum.map(queue, & &1.zone)
-    assert 0 in zones  # Zone 1 converted to 0
-    assert 1 in zones  # Zone 2 converted to 1
+    # Zone 1 converted to 0
+    assert 0 in zones
+    # Zone 2 converted to 1
+    assert 1 in zones
   end
 
   test "Mixed command types are queued separately" do

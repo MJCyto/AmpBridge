@@ -54,15 +54,21 @@ defmodule AmpBridgeWeb.SourceSetupLive do
 
   defp load_sources_from_device(device) do
     case device do
-      nil -> []
+      nil ->
+        []
+
       device ->
         case device.sources do
-          nil -> []
+          nil ->
+            []
+
           sources_map when is_map(sources_map) ->
             sources_map
             |> Map.values()
             |> Enum.sort_by(& &1["index"])
-          _ -> []
+
+          _ ->
+            []
         end
     end
   end

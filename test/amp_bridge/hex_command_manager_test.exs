@@ -14,8 +14,20 @@ defmodule AmpBridge.HexCommandManagerTest do
   describe "get_mute_command/1" do
     test "returns hex list for zone with mute command" do
       # Insert test data
-      mute_binaries = [<<0xA4>>, <<0x05>>, <<0x06>>, <<0xFF>>, <<0x0B>>, <<0x18>>, <<0x01>>, <<0x01>>, <<0xD1>>]
+      mute_binaries = [
+        <<0xA4>>,
+        <<0x05>>,
+        <<0x06>>,
+        <<0xFF>>,
+        <<0x0B>>,
+        <<0x18>>,
+        <<0x01>>,
+        <<0x01>>,
+        <<0xD1>>
+      ]
+
       mute_data = Jason.encode!(Enum.map(mute_binaries, &Base.encode64/1))
+
       %SerialCommand{}
       |> SerialCommand.changeset(%{
         zone_index: 0,
@@ -23,7 +35,18 @@ defmodule AmpBridge.HexCommandManagerTest do
       })
       |> Repo.insert!()
 
-      assert {:ok, [<<0xA4>>, <<0x05>>, <<0x06>>, <<0xFF>>, <<0x0B>>, <<0x18>>, <<0x01>>, <<0x01>>, <<0xD1>>]} = HexCommandManager.get_mute_command(0)
+      assert {:ok,
+              [
+                <<0xA4>>,
+                <<0x05>>,
+                <<0x06>>,
+                <<0xFF>>,
+                <<0x0B>>,
+                <<0x18>>,
+                <<0x01>>,
+                <<0x01>>,
+                <<0xD1>>
+              ]} = HexCommandManager.get_mute_command(0)
     end
 
     test "returns error for zone without mute command" do
@@ -48,8 +71,20 @@ defmodule AmpBridge.HexCommandManagerTest do
   describe "get_unmute_command/1" do
     test "returns hex list for zone with unmute command" do
       # Insert test data
-      unmute_binaries = [<<0xB4>>, <<0x15>>, <<0x16>>, <<0x0F>>, <<0x1B>>, <<0x28>>, <<0x11>>, <<0x11>>, <<0xE1>>]
+      unmute_binaries = [
+        <<0xB4>>,
+        <<0x15>>,
+        <<0x16>>,
+        <<0x0F>>,
+        <<0x1B>>,
+        <<0x28>>,
+        <<0x11>>,
+        <<0x11>>,
+        <<0xE1>>
+      ]
+
       unmute_data = Jason.encode!(Enum.map(unmute_binaries, &Base.encode64/1))
+
       %SerialCommand{}
       |> SerialCommand.changeset(%{
         zone_index: 0,
@@ -57,7 +92,18 @@ defmodule AmpBridge.HexCommandManagerTest do
       })
       |> Repo.insert!()
 
-      assert {:ok, [<<0xB4>>, <<0x15>>, <<0x16>>, <<0x0F>>, <<0x1B>>, <<0x28>>, <<0x11>>, <<0x11>>, <<0xE1>>]} = HexCommandManager.get_unmute_command(0)
+      assert {:ok,
+              [
+                <<0xB4>>,
+                <<0x15>>,
+                <<0x16>>,
+                <<0x0F>>,
+                <<0x1B>>,
+                <<0x28>>,
+                <<0x11>>,
+                <<0x11>>,
+                <<0xE1>>
+              ]} = HexCommandManager.get_unmute_command(0)
     end
 
     test "returns error for zone without unmute command" do
@@ -86,6 +132,7 @@ defmodule AmpBridge.HexCommandManagerTest do
       unmute_binaries = [<<0xB4>>, <<0x15>>, <<0x16>>]
       mute_data = Jason.encode!(Enum.map(mute_binaries, &Base.encode64/1))
       unmute_data = Jason.encode!(Enum.map(unmute_binaries, &Base.encode64/1))
+
       %SerialCommand{}
       |> SerialCommand.changeset(%{
         zone_index: 0,
@@ -94,8 +141,9 @@ defmodule AmpBridge.HexCommandManagerTest do
       })
       |> Repo.insert!()
 
-      assert {:ok, %{mute: [<<0xA4>>, <<0x05>>, <<0x06>>], unmute: [<<0xB4>>, <<0x15>>, <<0x16>>]}} =
-        HexCommandManager.get_all_commands_for_zone(0)
+      assert {:ok,
+              %{mute: [<<0xA4>>, <<0x05>>, <<0x06>>], unmute: [<<0xB4>>, <<0x15>>, <<0x16>>]}} =
+               HexCommandManager.get_all_commands_for_zone(0)
     end
 
     test "returns empty lists for zone with no commands" do
@@ -122,6 +170,7 @@ defmodule AmpBridge.HexCommandManagerTest do
       # Insert test data
       mute_binaries = [<<0xA4>>, <<0x05>>, <<0x06>>]
       mute_data = Jason.encode!(Enum.map(mute_binaries, &Base.encode64/1))
+
       %SerialCommand{}
       |> SerialCommand.changeset(%{
         zone_index: 0,
@@ -154,7 +203,8 @@ defmodule AmpBridge.HexCommandManagerTest do
       assert {:ok, %SerialCommand{}} = HexCommandManager.update_command(0, :mute, hex_values)
 
       # Verify the update
-      assert {:ok, [<<0xA4>>, <<0x05>>, <<0x06>>, <<0xFF>>]} = HexCommandManager.get_mute_command(0)
+      assert {:ok, [<<0xA4>>, <<0x05>>, <<0x06>>, <<0xFF>>]} =
+               HexCommandManager.get_mute_command(0)
     end
 
     test "updates unmute command successfully" do
@@ -167,7 +217,8 @@ defmodule AmpBridge.HexCommandManagerTest do
       assert {:ok, %SerialCommand{}} = HexCommandManager.update_command(0, :unmute, hex_values)
 
       # Verify the update
-      assert {:ok, [<<0xB4>>, <<0x15>>, <<0x16>>, <<0x0F>>]} = HexCommandManager.get_unmute_command(0)
+      assert {:ok, [<<0xB4>>, <<0x15>>, <<0x16>>, <<0x0F>>]} =
+               HexCommandManager.get_unmute_command(0)
     end
 
     test "returns error for non-existent zone" do
@@ -175,7 +226,8 @@ defmodule AmpBridge.HexCommandManagerTest do
     end
 
     test "returns error for invalid command type" do
-      assert {:error, :invalid_command_type} = HexCommandManager.update_command(0, :invalid, [0xA4])
+      assert {:error, :invalid_command_type} =
+               HexCommandManager.update_command(0, :invalid, [0xA4])
     end
   end
 
@@ -201,10 +253,11 @@ defmodule AmpBridge.HexCommandManagerTest do
       # Zone 2 formula: 217, so volume_byte2 = 217 - 75 = 142
       assert length(hex_values) == 10
       assert Enum.take(hex_values, 7) == [164, 5, 6, 255, 11, 16, 2]
-      assert Enum.at(hex_values, 7) == 75  # volume_byte1
-      assert Enum.at(hex_values, 8) == 142  # volume_byte2
+      # volume_byte1
+      assert Enum.at(hex_values, 7) == 75
+      # volume_byte2
+      assert Enum.at(hex_values, 8) == 142
     end
-
 
     test "get_volume_command with invalid parameters returns error" do
       assert HexCommandManager.get_volume_command(0, 50) == {:error, :invalid_parameters}

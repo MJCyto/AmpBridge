@@ -243,8 +243,9 @@ defmodule AmpBridge.LearnedCommands do
     serial_commands = load_serial_commands_for_export(device_id)
 
     # Combine all commands
-    all_commands = (serial_commands ++ learned_commands)
-    |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
+    all_commands =
+      (serial_commands ++ learned_commands)
+      |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
 
     # Group commands by zone
     commands_by_zone = Enum.group_by(all_commands, & &1.zone)
@@ -263,7 +264,9 @@ defmodule AmpBridge.LearnedCommands do
         "total_zones" => length(Map.keys(commands_by_zone)),
         "total_commands" => length(all_commands)
       },
-      "zones" => build_zones_export(commands_by_zone, device) |> Enum.into(%{}, fn zone -> {zone["zone_number"], zone} end)
+      "zones" =>
+        build_zones_export(commands_by_zone, device)
+        |> Enum.into(%{}, fn zone -> {zone["zone_number"], zone} end)
     }
   end
 
@@ -275,18 +278,18 @@ defmodule AmpBridge.LearnedCommands do
          {:ok, _metadata} <- validate_import_metadata(parsed_data),
          {:ok, zones} <- validate_zones_structure(parsed_data["zones"]),
          {:ok, commands} <- parse_imported_commands(device_id, zones) do
-
       # Import commands to database
       import_results = Enum.map(commands, &import_single_command/1)
 
       successful_imports = Enum.count(import_results, &match?({:ok, _}, &1))
       failed_imports = Enum.count(import_results, &match?({:error, _}, &1))
 
-      {:ok, %{
-        successful_imports: successful_imports,
-        failed_imports: failed_imports,
-        total_commands: length(commands)
-      }}
+      {:ok,
+       %{
+         successful_imports: successful_imports,
+         failed_imports: failed_imports,
+         total_commands: length(commands)
+       }}
     else
       {:error, reason} -> {:error, reason}
     end
@@ -303,38 +306,48 @@ defmodule AmpBridge.LearnedCommands do
       commands = []
 
       # Add mute command if exists
-      commands = if serial_command.mute != "[]" do
-        mute_sequence = decode_serial_command(serial_command.mute)
-        [%{
-          control_type: "mute",
-          zone: zone,
-          source_index: nil,
-          volume_level: nil,
-          command_sequence: mute_sequence,
-          response_pattern: nil,
-          learned_at: serial_command.updated_at,
-          is_active: true
-        } | commands]
-      else
-        commands
-      end
+      commands =
+        if serial_command.mute != "[]" do
+          mute_sequence = decode_serial_command(serial_command.mute)
+
+          [
+            %{
+              control_type: "mute",
+              zone: zone,
+              source_index: nil,
+              volume_level: nil,
+              command_sequence: mute_sequence,
+              response_pattern: nil,
+              learned_at: serial_command.updated_at,
+              is_active: true
+            }
+            | commands
+          ]
+        else
+          commands
+        end
 
       # Add unmute command if exists
-      commands = if serial_command.unmute != "[]" do
-        unmute_sequence = decode_serial_command(serial_command.unmute)
-        [%{
-          control_type: "unmute",
-          zone: zone,
-          source_index: nil,
-          volume_level: nil,
-          command_sequence: unmute_sequence,
-          response_pattern: nil,
-          learned_at: serial_command.updated_at,
-          is_active: true
-        } | commands]
-      else
-        commands
-      end
+      commands =
+        if serial_command.unmute != "[]" do
+          unmute_sequence = decode_serial_command(serial_command.unmute)
+
+          [
+            %{
+              control_type: "unmute",
+              zone: zone,
+              source_index: nil,
+              volume_level: nil,
+              command_sequence: unmute_sequence,
+              response_pattern: nil,
+              learned_at: serial_command.updated_at,
+              is_active: true
+            }
+            | commands
+          ]
+        else
+          commands
+        end
 
       commands
     end)
@@ -351,7 +364,9 @@ defmodule AmpBridge.LearnedCommands do
           end
         end)
         |> :erlang.list_to_binary()
-      {:error, _} -> <<>>
+
+      {:error, _} ->
+        <<>>
     end
   end
 
@@ -372,6 +387,7 @@ defmodule AmpBridge.LearnedCommands do
   defp get_zone_name_from_device(device, zone) do
     if device && device.zones do
       zone_key = to_string(zone)
+
       case Map.get(device.zones, zone_key) do
         %{"name" => name} when is_binary(name) and name != "" -> name
         _ -> nil
@@ -388,7 +404,8 @@ defmodule AmpBridge.LearnedCommands do
       "source_index" => command.source_index,
       "volume_level" => command.volume_level,
       "command_sequence" => Base.encode64(command.command_sequence),
-      "response_pattern" => if(command.response_pattern, do: Base.encode64(command.response_pattern), else: nil),
+      "response_pattern" =>
+        if(command.response_pattern, do: Base.encode64(command.response_pattern), else: nil),
       "learned_at" => command.learned_at |> NaiveDateTime.to_iso8601(),
       "is_active" => command.is_active
     }
@@ -397,7 +414,9 @@ defmodule AmpBridge.LearnedCommands do
   # Private helper functions for import
   defp validate_import_metadata(data) do
     case Map.get(data, "metadata") do
-      nil -> {:error, "Missing metadata section"}
+      nil ->
+        {:error, "Missing metadata section"}
+
       metadata ->
         if Map.get(metadata, "export_version") do
           {:ok, metadata}
@@ -410,24 +429,27 @@ defmodule AmpBridge.LearnedCommands do
   defp validate_zones_structure(zones) when is_map(zones) do
     {:ok, zones}
   end
+
   defp validate_zones_structure(zones) when is_list(zones) do
     # Handle legacy format where zones is a list
     zones_map = Enum.into(zones, %{}, fn zone -> {zone["zone_number"], zone} end)
     {:ok, zones_map}
   end
+
   defp validate_zones_structure(_), do: {:error, "Invalid zones structure"}
 
   defp parse_imported_commands(device_id, zones) do
-    commands = zones
-    |> Enum.flat_map(fn {_zone_key, zone_data} ->
-      zone_number = Map.get(zone_data, "zone_number")
-      zone_commands = Map.get(zone_data, "commands", [])
+    commands =
+      zones
+      |> Enum.flat_map(fn {_zone_key, zone_data} ->
+        zone_number = Map.get(zone_data, "zone_number")
+        zone_commands = Map.get(zone_data, "commands", [])
 
-      Enum.map(zone_commands, fn command_data ->
-        parse_single_command(device_id, zone_number, command_data)
+        Enum.map(zone_commands, fn command_data ->
+          parse_single_command(device_id, zone_number, command_data)
+        end)
       end)
-    end)
-    |> Enum.reject(&is_nil/1)
+      |> Enum.reject(&is_nil/1)
 
     if length(commands) == 0 do
       {:error, "No valid commands found in import file"}
@@ -438,9 +460,10 @@ defmodule AmpBridge.LearnedCommands do
 
   defp parse_single_command(device_id, zone_number, command_data) do
     with {:ok, control_type} <- validate_control_type(Map.get(command_data, "control_type")),
-         {:ok, command_sequence} <- decode_command_sequence(Map.get(command_data, "command_sequence")),
-         {:ok, response_pattern} <- decode_response_pattern(Map.get(command_data, "response_pattern")) do
-
+         {:ok, command_sequence} <-
+           decode_command_sequence(Map.get(command_data, "command_sequence")),
+         {:ok, response_pattern} <-
+           decode_response_pattern(Map.get(command_data, "response_pattern")) do
       %{
         device_id: device_id,
         control_type: control_type,
@@ -457,14 +480,23 @@ defmodule AmpBridge.LearnedCommands do
     end
   end
 
-  defp validate_control_type(control_type) when control_type in [
-    "mute", "unmute", "volume_up", "volume_down", "set_volume", "change_source", "turn_off"
-  ] do
+  defp validate_control_type(control_type)
+       when control_type in [
+              "mute",
+              "unmute",
+              "volume_up",
+              "volume_down",
+              "set_volume",
+              "change_source",
+              "turn_off"
+            ] do
     {:ok, control_type}
   end
+
   defp validate_control_type(_), do: {:error, "Invalid control type"}
 
   defp decode_command_sequence(nil), do: {:error, "Missing command sequence"}
+
   defp decode_command_sequence(base64_string) do
     case Base.decode64(base64_string) do
       {:ok, binary} -> {:ok, binary}
@@ -473,6 +505,7 @@ defmodule AmpBridge.LearnedCommands do
   end
 
   defp decode_response_pattern(nil), do: {:ok, nil}
+
   defp decode_response_pattern(base64_string) do
     case Base.decode64(base64_string) do
       {:ok, binary} -> {:ok, binary}
@@ -481,6 +514,7 @@ defmodule AmpBridge.LearnedCommands do
   end
 
   defp parse_learned_at(nil), do: NaiveDateTime.utc_now()
+
   defp parse_learned_at(iso_string) do
     case NaiveDateTime.from_iso8601(iso_string) do
       {:ok, naive_dt, _} -> naive_dt

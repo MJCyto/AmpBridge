@@ -8,11 +8,15 @@ defmodule AmpBridge.CommandQueueCTSTimingTest do
     Application.put_env(:amp_bridge, :test_mode, true)
 
     # Start CommandQueue with custom timing
-    {:ok, _} = CommandQueue.start_link([
-      cts_initial_delay: 30,  # 30ms initial delay
-      cts_check_interval: 5,  # 5ms check interval
-      cts_timeout: 100        # 100ms timeout
-    ])
+    {:ok, _} =
+      CommandQueue.start_link(
+        # 30ms initial delay
+        cts_initial_delay: 30,
+        # 5ms check interval
+        cts_check_interval: 5,
+        # 100ms timeout
+        cts_timeout: 100
+      )
 
     :ok
   end
@@ -42,7 +46,8 @@ defmodule AmpBridge.CommandQueueCTSTimingTest do
     assert status.current_command != nil
 
     # Wait for initial delay + some CTS checks
-    Process.sleep(50)  # Wait 50ms (initial delay + some checks)
+    # Wait 50ms (initial delay + some checks)
+    Process.sleep(50)
 
     # Check that we're still processing (CTS should be simulated as high in test mode)
     status = CommandQueue.get_status(CommandQueue)

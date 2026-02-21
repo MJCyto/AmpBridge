@@ -138,36 +138,59 @@ defmodule AmpBridge.HardwareController do
 
   @impl true
   def handle_info({:zone_volume_changed, zone_id, volume}, state) do
-    Logger.debug("Hardware Controller #{state.name}: Zone #{zone_id} volume changed to #{volume}%")
+    Logger.debug(
+      "Hardware Controller #{state.name}: Zone #{zone_id} volume changed to #{volume}%"
+    )
+
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:zone_source_changed, zone_id, source_name}, state) do
-    Logger.info("Hardware Controller #{state.name}: Zone #{zone_id} source changed to #{source_name}")
+    Logger.info(
+      "Hardware Controller #{state.name}: Zone #{zone_id} source changed to #{source_name}"
+    )
 
     # Use CommandLearner system like MQTT client does
     case source_name do
       "Off" ->
-        Logger.info("Sending turn_off command for zone #{zone_id} using device #{state.device_id}")
+        Logger.info(
+          "Sending turn_off command for zone #{zone_id} using device #{state.device_id}"
+        )
+
         case AmpBridge.CommandLearner.execute_command(state.device_id, "turn_off", zone_id) do
           {:ok, :command_sent} ->
             Logger.info("Turn off command sent successfully for zone #{zone_id}")
+
           {:error, reason} ->
             Logger.warning("Failed to send turn off command for zone #{zone_id}: #{reason}")
         end
+
       source_name when is_binary(source_name) ->
         # Extract index from "Source X" format (1-based to 0-based)
         case Regex.run(~r/Source (\d+)/, source_name) do
           [_, index_str] ->
             source_index = String.to_integer(index_str) - 1
-            Logger.info("Sending change_source command for zone #{zone_id} to source #{source_index}")
-            case AmpBridge.CommandLearner.execute_command(state.device_id, "change_source", zone_id, source_index: source_index) do
+
+            Logger.info(
+              "Sending change_source command for zone #{zone_id} to source #{source_index}"
+            )
+
+            case AmpBridge.CommandLearner.execute_command(
+                   state.device_id,
+                   "change_source",
+                   zone_id,
+                   source_index: source_index
+                 ) do
               {:ok, :command_sent} ->
                 Logger.info("Change source command sent successfully for zone #{zone_id}")
+
               {:error, reason} ->
-                Logger.warning("Failed to send change source command for zone #{zone_id}: #{reason}")
+                Logger.warning(
+                  "Failed to send change source command for zone #{zone_id}: #{reason}"
+                )
             end
+
           nil ->
             Logger.warning("Could not parse source name: #{source_name}")
         end
@@ -363,31 +386,59 @@ defmodule AmpBridge.HardwareController do
         case Regex.run(~r/Source (\d+)/, source_name) do
           [_, index_str] ->
             source_index = String.to_integer(index_str) - 1
-            Logger.info("Hardware Controller: Converting '#{source_name}' to source index #{source_index}")
+
+            Logger.info(
+              "Hardware Controller: Converting '#{source_name}' to source index #{source_index}"
+            )
+
             "ZON#{zone_id}SRC#{source_index}"
+
           nil ->
             # Try to parse as direct source name (like "Echo", "Server", etc.)
             # Map common source names to indices
-            source_index = case source_name do
-              "Echo" -> 0
-              "Server" -> 1
-              "Source 3" -> 2
-              "Source 4" -> 3
-              "Source 5" -> 4
-              "Source 6" -> 5
-              "Source 7" -> 6
-              "Source 8" -> 7
-              _ ->
-                Logger.warning("Could not parse source name: #{source_name}")
-                0  # Default to source 0
-            end
-            Logger.info("Hardware Controller: Converting '#{source_name}' to source index #{source_index}")
+            source_index =
+              case source_name do
+                "Echo" ->
+                  0
+
+                "Server" ->
+                  1
+
+                "Source 3" ->
+                  2
+
+                "Source 4" ->
+                  3
+
+                "Source 5" ->
+                  4
+
+                "Source 6" ->
+                  5
+
+                "Source 7" ->
+                  6
+
+                "Source 8" ->
+                  7
+
+                _ ->
+                  Logger.warning("Could not parse source name: #{source_name}")
+                  # Default to source 0
+                  0
+              end
+
+            Logger.info(
+              "Hardware Controller: Converting '#{source_name}' to source index #{source_index}"
+            )
+
             "ZON#{zone_id}SRC#{source_index}"
         end
 
       _ ->
         Logger.warning("Invalid source name format: #{inspect(source_name)}")
-        "ZON#{zone_id}SRC0"  # Default to source 0
+        # Default to source 0
+        "ZON#{zone_id}SRC0"
     end
   end
 

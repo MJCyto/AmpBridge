@@ -27,7 +27,6 @@ defmodule AmpBridge.SerialDecoder do
     <<0xA4, 0x06>>
   ]
 
-
   defstruct [
     :serial_port,
     :port_name,
@@ -287,9 +286,6 @@ defmodule AmpBridge.SerialDecoder do
       raw: raw_data
     }
   end
-
-
-
 
   defp format_hex(binary_data) do
     binary_data

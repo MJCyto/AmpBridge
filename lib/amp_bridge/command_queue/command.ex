@@ -4,24 +4,31 @@ defmodule AmpBridge.CommandQueue.Command do
   """
 
   defstruct [
-    :id,           # Unique identifier for the command
-    :type,         # Command type (:volume, :mute, :unmute, :source, etc.)
-    :zone,         # Zone number (1-based)
-    :params,       # Command parameters (e.g., %{volume: 50})
-    :data,         # Binary data to send over serial
-    :replaceable,  # Whether this command can be replaced by a newer one
-    :priority      # Command priority (:high, :normal, :low)
+    # Unique identifier for the command
+    :id,
+    # Command type (:volume, :mute, :unmute, :source, etc.)
+    :type,
+    # Zone number (1-based)
+    :zone,
+    # Command parameters (e.g., %{volume: 50})
+    :params,
+    # Binary data to send over serial
+    :data,
+    # Whether this command can be replaced by a newer one
+    :replaceable,
+    # Command priority (:high, :normal, :low)
+    :priority
   ]
 
   @type t :: %__MODULE__{
-    id: String.t(),
-    type: atom(),
-    zone: integer(),
-    params: map(),
-    data: binary(),
-    replaceable: boolean(),
-    priority: atom()
-  }
+          id: String.t(),
+          type: atom(),
+          zone: integer(),
+          params: map(),
+          data: binary(),
+          replaceable: boolean(),
+          priority: atom()
+        }
 
   @doc """
   Create a new command.

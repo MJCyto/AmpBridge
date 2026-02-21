@@ -1,6 +1,7 @@
 defmodule AmpBridgeWeb.ZoneVolumeControl do
   use Phoenix.LiveComponent
   require Logger
+
   attr(:zone, :integer,
     required: true,
     doc: "Zone number (0-based internally, displayed as 1-based)"

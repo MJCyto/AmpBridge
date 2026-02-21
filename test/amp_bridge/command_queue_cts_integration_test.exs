@@ -44,8 +44,10 @@ defmodule AmpBridge.CommandQueueCTSIntegrationTest do
 
   test "CTS flow control simulation" do
     # Test the CTS flow control logic
-    cts_timeout = 200  # milliseconds
-    cts_check_interval = 10  # milliseconds
+    # milliseconds
+    cts_timeout = 200
+    # milliseconds
+    cts_check_interval = 10
 
     # Simulate CTS checking
     start_time = System.monotonic_time(:millisecond)
@@ -55,11 +57,13 @@ defmodule AmpBridge.CommandQueueCTSIntegrationTest do
     assert cts_result == {:ok, true}
 
     elapsed = System.monotonic_time(:millisecond) - start_time
-    assert elapsed < 10  # Should be immediate
+    # Should be immediate
+    assert elapsed < 10
 
     # Test timeout calculation
     checks_per_timeout = div(cts_timeout, cts_check_interval)
-    assert checks_per_timeout == 20  # Should check 20 times before timeout
+    # Should check 20 times before timeout
+    assert checks_per_timeout == 20
 
     IO.puts("✅ CTS flow control simulation test passed!")
   end

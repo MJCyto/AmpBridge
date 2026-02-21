@@ -262,7 +262,6 @@ defmodule AmpBridgeWeb.USBInitComponent do
     {:noreply, socket}
   end
 
-
   @impl true
   def render(assigns) do
     ~H"""

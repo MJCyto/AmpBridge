@@ -39,7 +39,9 @@ defmodule AmpBridgeWeb.SerialStepLive do
   def handle_info({:start_auto_detection, _amp_id}, socket) do
     Logger.info("Starting auto-detection for serial step")
     Phoenix.PubSub.subscribe(AmpBridge.PubSub, "serial_data")
-    {:noreply, put_flash(socket, :info, "Auto-detection started - send commands from your controller")}
+
+    {:noreply,
+     put_flash(socket, :info, "Auto-detection started - send commands from your controller")}
   end
 
   @impl true
@@ -91,10 +93,15 @@ defmodule AmpBridgeWeb.SerialStepLive do
         case Devices.update_device(device, attrs) do
           {:ok, _updated_device} ->
             Logger.info("Updated #{adapter} name to #{name} for serial step")
-            {:noreply, put_flash(socket, :info, "#{String.capitalize(adapter)} name updated to #{name}")}
+
+            {:noreply,
+             put_flash(socket, :info, "#{String.capitalize(adapter)} name updated to #{name}")}
 
           {:error, changeset} ->
-            Logger.error("Failed to update #{adapter} name for serial step: #{inspect(changeset)}")
+            Logger.error(
+              "Failed to update #{adapter} name for serial step: #{inspect(changeset)}"
+            )
+
             {:noreply, put_flash(socket, :error, "Failed to update #{adapter} name")}
         end
     end

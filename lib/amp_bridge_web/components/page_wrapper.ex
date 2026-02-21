@@ -40,11 +40,11 @@ defmodule AmpBridgeWeb.PageWrapper do
     end
   end
 
-  attr :class, :string, default: "", doc: "Additional CSS classes for the main content container"
-  attr :uri, :string, doc: "URI to parse for current path and page label generation"
+  attr(:class, :string, default: "", doc: "Additional CSS classes for the main content container")
+  attr(:uri, :string, doc: "URI to parse for current path and page label generation")
 
-  slot :header_actions, doc: "Optional actions to display in the page header"
-  slot :inner_block, required: true, doc: "The main page content"
+  slot(:header_actions, doc: "Optional actions to display in the page header")
+  slot(:inner_block, required: true, doc: "The main page content")
 
   def page_wrapper(assigns) do
     current_path = URI.parse(assigns.uri).path

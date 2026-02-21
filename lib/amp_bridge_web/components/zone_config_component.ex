@@ -86,12 +86,21 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
     # Save to database and broadcast
     zones_with_defaults = apply_zone_defaults(updated_zones)
     save_zones_to_db(socket, zones_with_defaults)
-    Phoenix.PubSub.broadcast(AmpBridge.PubSub, "zone_config_updates", {:zones_updated, updated_zones})
+
+    Phoenix.PubSub.broadcast(
+      AmpBridge.PubSub,
+      "zone_config_updates",
+      {:zones_updated, updated_zones}
+    )
 
     {:noreply, assign(socket, form_data: form_data, zones: updated_zones)}
   end
 
-  def handle_event("update_zone_sources", %{"index" => index, "sources" => selected_sources}, socket) do
+  def handle_event(
+        "update_zone_sources",
+        %{"index" => index, "sources" => selected_sources},
+        socket
+      ) do
     index_int = String.to_integer(index)
     zones = socket.assigns.zones
 
@@ -117,7 +126,12 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
     # Save to database and broadcast
     zones_with_defaults = apply_zone_defaults(updated_zones)
     save_zones_to_db(socket, zones_with_defaults)
-    Phoenix.PubSub.broadcast(AmpBridge.PubSub, "zone_config_updates", {:zones_updated, updated_zones})
+
+    Phoenix.PubSub.broadcast(
+      AmpBridge.PubSub,
+      "zone_config_updates",
+      {:zones_updated, updated_zones}
+    )
 
     {:noreply, assign(socket, form_data: form_data, zones: updated_zones)}
   end
@@ -220,7 +234,8 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
   end
 
   defp input_class(error) do
-    base_class = "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    base_class =
+      "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 
     if error do
       base_class <> " border-red-500"
@@ -266,12 +281,16 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
 
   defp load_zones_from_device(device) do
     case device.zones do
-      nil -> []
+      nil ->
+        []
+
       zones_map when is_map(zones_map) ->
         zones_map
         |> Map.values()
         |> Enum.sort_by(& &1["index"])
-      _ -> []
+
+      _ ->
+        []
     end
   end
 

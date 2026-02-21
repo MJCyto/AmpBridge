@@ -19,26 +19,33 @@ defmodule AmpBridge.HexCommandManager do
     8 => 211
   }
 
-
   @doc """
   Get mute command as a list of hex values for the specified zone.
   Returns {:ok, hex_list} or {:error, reason}
   """
   def get_mute_command(zone_index) when zone_index in 0..7 do
     case Repo.get(SerialCommand, zone_index) do
-      nil -> {:error, :zone_not_found}
-      %SerialCommand{mute: "[]"} -> {:error, :no_mute_command}
+      nil ->
+        {:error, :zone_not_found}
+
+      %SerialCommand{mute: "[]"} ->
+        {:error, :no_mute_command}
+
       %SerialCommand{mute: mute_json} ->
         case Jason.decode(mute_json) do
           {:ok, mute_array} ->
-            hex_values = Enum.map(mute_array, fn base64_binary ->
-              case Base.decode64(base64_binary) do
-                {:ok, binary} -> binary
-                {:error, _} -> <<>>
-              end
-            end)
+            hex_values =
+              Enum.map(mute_array, fn base64_binary ->
+                case Base.decode64(base64_binary) do
+                  {:ok, binary} -> binary
+                  {:error, _} -> <<>>
+                end
+              end)
+
             {:ok, hex_values}
-          {:error, _} -> {:error, :invalid_mute_data}
+
+          {:error, _} ->
+            {:error, :invalid_mute_data}
         end
     end
   end
@@ -51,19 +58,27 @@ defmodule AmpBridge.HexCommandManager do
   """
   def get_unmute_command(zone_index) when zone_index in 0..7 do
     case Repo.get(SerialCommand, zone_index) do
-      nil -> {:error, :zone_not_found}
-      %SerialCommand{unmute: "[]"} -> {:error, :no_unmute_command}
+      nil ->
+        {:error, :zone_not_found}
+
+      %SerialCommand{unmute: "[]"} ->
+        {:error, :no_unmute_command}
+
       %SerialCommand{unmute: unmute_json} ->
         case Jason.decode(unmute_json) do
           {:ok, unmute_array} ->
-            hex_values = Enum.map(unmute_array, fn base64_binary ->
-              case Base.decode64(base64_binary) do
-                {:ok, binary} -> binary
-                {:error, _} -> <<>>
-              end
-            end)
+            hex_values =
+              Enum.map(unmute_array, fn base64_binary ->
+                case Base.decode64(base64_binary) do
+                  {:ok, binary} -> binary
+                  {:error, _} -> <<>>
+                end
+              end)
+
             {:ok, hex_values}
-          {:error, _} -> {:error, :invalid_unmute_data}
+
+          {:error, _} ->
+            {:error, :invalid_unmute_data}
         end
     end
   end
@@ -76,22 +91,28 @@ defmodule AmpBridge.HexCommandManager do
   """
   def get_all_commands_for_zone(zone_index) when zone_index in 0..7 do
     case Repo.get(SerialCommand, zone_index) do
-      nil -> {:error, :zone_not_found}
+      nil ->
+        {:error, :zone_not_found}
+
       %SerialCommand{mute: mute_json, unmute: unmute_json} ->
         with {:ok, mute_array} <- Jason.decode(mute_json),
              {:ok, unmute_array} <- Jason.decode(unmute_json) do
-          mute_hex = Enum.map(mute_array, fn base64_binary ->
-            case Base.decode64(base64_binary) do
-              {:ok, binary} -> binary
-              {:error, _} -> <<>>
-            end
-          end)
-          unmute_hex = Enum.map(unmute_array, fn base64_binary ->
-            case Base.decode64(base64_binary) do
-              {:ok, binary} -> binary
-              {:error, _} -> <<>>
-            end
-          end)
+          mute_hex =
+            Enum.map(mute_array, fn base64_binary ->
+              case Base.decode64(base64_binary) do
+                {:ok, binary} -> binary
+                {:error, _} -> <<>>
+              end
+            end)
+
+          unmute_hex =
+            Enum.map(unmute_array, fn base64_binary ->
+              case Base.decode64(base64_binary) do
+                {:ok, binary} -> binary
+                {:error, _} -> <<>>
+              end
+            end)
+
           commands = %{mute: mute_hex, unmute: unmute_hex}
           {:ok, commands}
         else
@@ -108,7 +129,9 @@ defmodule AmpBridge.HexCommandManager do
   """
   def command_exists?(zone_index, command_type) when command_type in [:mute, :unmute] do
     case Repo.get(SerialCommand, zone_index) do
-      nil -> false
+      nil ->
+        false
+
       %SerialCommand{} = command ->
         case command_type do
           :mute -> command.mute != "[]"
@@ -123,18 +146,22 @@ defmodule AmpBridge.HexCommandManager do
   Update a command for a zone.
   Returns {:ok, serial_command} or {:error, changeset}
   """
-  def update_command(zone_index, command_type, hex_values) when command_type in [:mute, :unmute] do
+  def update_command(zone_index, command_type, hex_values)
+      when command_type in [:mute, :unmute] do
     case Repo.get(SerialCommand, zone_index) do
-      nil -> {:error, :zone_not_found}
+      nil ->
+        {:error, :zone_not_found}
+
       serial_command ->
         binary_array = Enum.map(hex_values, fn hex_value -> <<hex_value>> end)
         base64_array = Enum.map(binary_array, &Base.encode64/1)
         json_data = Jason.encode!(base64_array)
 
-        attrs = case command_type do
-          :mute -> %{mute: json_data}
-          :unmute -> %{unmute: json_data}
-        end
+        attrs =
+          case command_type do
+            :mute -> %{mute: json_data}
+            :unmute -> %{unmute: json_data}
+          end
 
         serial_command
         |> SerialCommand.changeset(attrs)
@@ -150,19 +177,21 @@ defmodule AmpBridge.HexCommandManager do
   Get volume command as a list of hex values for the specified zone and volume level.
   Returns {:ok, hex_list} or {:error, reason}
   """
-  def get_volume_command(zone_index, volume_percentage) when zone_index in 1..8 and volume_percentage in 0..100 do
+  def get_volume_command(zone_index, volume_percentage)
+      when zone_index in 1..8 and volume_percentage in 0..100 do
     encoding_formula = get_volume_encoding_formula(zone_index)
     volume_byte1 = volume_percentage
     volume_byte2 = encoding_formula - volume_percentage
     command_bytes = [0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, zone_index, volume_byte1, volume_byte2]
     checksum = calculate_checksum(command_bytes)
 
-    hex_values = create_zone_specific_volume_chunks(zone_index, volume_byte1, volume_byte2, checksum)
+    hex_values =
+      create_zone_specific_volume_chunks(zone_index, volume_byte1, volume_byte2, checksum)
+
     {:ok, hex_values}
   end
 
   def get_volume_command(_zone_index, _volume_percentage), do: {:error, :invalid_parameters}
-
 
   # Private helper functions
 

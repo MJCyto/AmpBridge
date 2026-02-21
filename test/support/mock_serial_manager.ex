@@ -47,7 +47,8 @@ defmodule AmpBridge.MockSerialManager do
   end
 
   def check_cts_status(_adapter) do
-    {:ok, true}  # Simulate CTS high in test mode
+    # Simulate CTS high in test mode
+    {:ok, true}
   end
 
   def get_adapter_color(_adapter) do
