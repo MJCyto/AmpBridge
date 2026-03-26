@@ -343,7 +343,7 @@ defmodule AmpBridgeWeb.InitLive do
 
               <div class="flex justify-between">
                 <div></div>
-                <button phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
                   Next: Serial
                 </button>
               </div>
@@ -370,10 +370,10 @@ defmodule AmpBridgeWeb.InitLive do
               />
 
               <div class="flex justify-between mt-3">
-                <button phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
                   Back: Sources & Zones
                 </button>
-                <button phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
                   Next: Command Learning
                 </button>
               </div>
@@ -395,10 +395,10 @@ defmodule AmpBridgeWeb.InitLive do
               />
 
               <div class="flex justify-between">
-                <button phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
                   Back: Serial
                 </button>
-                <button phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
                   Complete Setup
                 </button>
               </div>
@@ -417,10 +417,10 @@ defmodule AmpBridgeWeb.InitLive do
               </div>
 
               <div class="flex justify-between">
-                <button phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
                   Back: USB Assignment
                 </button>
-                <button phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
                   Next: Finish
                 </button>
               </div>
@@ -444,10 +444,10 @@ defmodule AmpBridgeWeb.InitLive do
               </div>
 
               <div class="flex justify-between">
-                <button phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="prev_step" class="bg-neutral-600 hover:bg-neutral-500 text-white px-6 py-2 rounded-md font-medium">
                   Back: Command Learning
                 </button>
-                <button phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
+                <button type="button" phx-click="next_step" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium">
                   Done
                 </button>
                 </div>

@@ -1,40 +1,39 @@
-const path = require('path');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const path = require("path");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
-module.exports = (env, options) => {
-  const devMode = options.mode !== 'production';
+module.exports = (_env, argv) => {
+  const devMode = argv.mode === "development";
 
   return {
-    entry: './js/app.js',
-    output: {
-      filename: 'app.js',
-      path: path.resolve(__dirname, '../priv/static/js'),
-      publicPath: '/js/'
+    entry: {
+      app: "./js/app.js",
     },
-    devtool: devMode ? 'eval-cheap-module-source-map' : undefined,
+    output: {
+      filename: "app.js",
+      path: path.resolve(__dirname, "../priv/static/js"),
+    },
     module: {
       rules: [
         {
           test: /\.js$/,
           exclude: /node_modules/,
-          use: {
-            loader: 'babel-loader'
-          }
+          use: "babel-loader",
         },
         {
           test: /\.css$/,
-          use: [
-            MiniCssExtractPlugin.loader,
-            'css-loader',
-            'postcss-loader'
-          ]
-        }
-      ]
+          use: [MiniCssExtractPlugin.loader, "css-loader", "postcss-loader"],
+        },
+      ],
     },
     plugins: [
       new MiniCssExtractPlugin({
-        filename: '../css/app.css'
-      })
-    ]
+        filename: path.join("..", "css", "app.css"),
+      }),
+    ],
+    devtool: devMode ? "eval-cheap-module-source-map" : "source-map",
+    watchOptions: {
+      poll: 1000,
+      ignored: /node_modules/,
+    },
   };
 };

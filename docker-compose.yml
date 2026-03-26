@@ -1,0 +1,41 @@
+# AmpBridge production stack (matches published image layout).
+#
+# Source in this repo:
+#   Dockerfile          — multi-stage build → release + Mosquitto in image
+#   docker/start.sh     — entrypoint: migrate/seed DB, start Mosquitto :1885, start app :4000
+#   docker/mosquitto.conf — broker config (listener 1885, persistence under /app/data/mosquitto)
+#
+# On the server:
+#   cp docker.env.example .env   # optional; edit .env — never commit .env
+#   docker compose pull && docker compose up -d
+#   docker compose logs -f ampbridge
+#
+# Secrets (MQTT password, etc.): put them in `.env` next to this file, not in this YAML.
+# Compose reads `.env` automatically for ${VAR} substitution below.
+# For SECRET_KEY_BASE, use: docker compose run -e ... or extend this file with care (do not commit secrets).
+#
+# Data: named volume `ampbridge-data` → /app/data (SQLite DB + mosquitto persistence).
+# USB serial: requires privileged + /dev/bus/usb (same as plain `docker run` in README).
+
+services:
+  ampbridge:
+    image: cytotoxicdingus/ampbridge:latest-amd64
+    container_name: ampbridge
+    privileged: true
+    ports:
+      - "4000:4000"
+      - "1885:1885"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - ampbridge-data:/app/data
+    restart: unless-stopped
+    environment:
+      # Defaults match the image; override via `.env` in this directory.
+      MQTT_HOST: ${MQTT_HOST:-0.0.0.0}
+      MQTT_PORT: ${MQTT_PORT:-1885}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_BASE_TOPIC: ${MQTT_BASE_TOPIC:-ampbridge/zones}
+
+volumes:
+  ampbridge-data:

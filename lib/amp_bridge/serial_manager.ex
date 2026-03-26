@@ -203,7 +203,8 @@ defmodule AmpBridge.SerialManager do
 
     final_state = attempt_auto_connection(adapter_1_device, adapter_2_device, initial_state)
 
-    Process.send_after(self(), :check_and_start_relay, 2000)
+    # Run after init returns so SerialRelay (next sibling) is registered; 0 defers to next loop.
+    Process.send_after(self(), :check_and_start_relay, 0)
 
     {:ok, final_state}
   end
@@ -360,6 +361,14 @@ defmodule AmpBridge.SerialManager do
           Logger.info("Command sent via #{adapter}: #{format_hex(data)}")
 
           if log_command do
+            # Same UART as the write above; label the real adapter so UI / advanced logs match
+            # the physical port (learned source commands use adapter_2).
+            tx_adapter_info = %{
+              adapter: adapter,
+              adapter_name: get_adapter_name(adapter),
+              adapter_color: get_adapter_color(adapter)
+            }
+
             command_message = %{
               timestamp: DateTime.utc_now(),
               hex: format_hex(data),
@@ -369,20 +378,15 @@ defmodule AmpBridge.SerialManager do
                 description: "Serial command sent",
                 command: "serial_command"
               },
-              adapter: :system,
-              adapter_name: "System",
-              adapter_color: "grey"
+              adapter: tx_adapter_info.adapter,
+              adapter_name: tx_adapter_info.adapter_name,
+              adapter_color: tx_adapter_info.adapter_color
             }
 
             Phoenix.PubSub.broadcast(
               AmpBridge.PubSub,
               "serial_data",
-              {:serial_data, data, command_message.decoded,
-               %{
-                 adapter: :system,
-                 adapter_name: "System",
-                 adapter_color: "grey"
-               }}
+              {:serial_data, data, command_message.decoded, tx_adapter_info}
             )
           end
 
@@ -645,6 +649,7 @@ defmodule AmpBridge.SerialManager do
       case AmpBridge.SerialRelay.start_relay_with_status(true, true) do
         :ok ->
           Logger.info("SerialRelay auto-started successfully")
+
         {:error, reason} ->
           Logger.warning("Failed to auto-start SerialRelay: #{reason}")
       end

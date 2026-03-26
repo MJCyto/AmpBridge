@@ -24,6 +24,8 @@ defmodule AmpBridge.Application do
         AmpBridge.SerialRelay,
         # Zone Manager - handles volume control and zone state tracking
         AmpBridge.ZoneManager,
+        # Normalize zone source/mute in DB before MQTT publishes state
+        AmpBridge.StartupZoneDefaults,
         # MQTT Client - publishes zone states for Home Assistant
         AmpBridge.MQTTClient,
         # Command Queue - our new module
@@ -51,11 +53,14 @@ defmodule AmpBridge.Application do
         AmpBridge.SerialRelay,
         # Zone Manager - handles volume control and zone state tracking
         AmpBridge.ZoneManager,
+        # HTTP before MQTT so the UI is reachable while zone defaults apply
+        AmpBridgeWeb.Endpoint,
+        # DB Off + unmuted for all configured zones before MQTT publishes (volumes unchanged)
+        AmpBridge.StartupZoneDefaults,
         # MQTT Client - publishes zone states for Home Assistant
         AmpBridge.MQTTClient,
         # Command Queue - our new module
-        AmpBridge.CommandQueue,
-        AmpBridgeWeb.Endpoint
+        AmpBridge.CommandQueue
       ]
     end
 

@@ -1,5 +1,6 @@
 defmodule AmpBridgeWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :amp_bridge
+  require AmpBridgeWeb
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -32,10 +33,7 @@ defmodule AmpBridgeWeb.Endpoint do
   # LiveView socket endpoint
   socket("/live", Phoenix.LiveView.Socket)
 
-  plug(Phoenix.LiveDashboard.RequestLogger,
-    param_key: "request_logger",
-    cookie_key: "request_logger"
-  )
+  AmpBridgeWeb.dev_live_dashboard_request_logger_plug()
 
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])

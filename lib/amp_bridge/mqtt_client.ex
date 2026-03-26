@@ -344,7 +344,7 @@ defmodule AmpBridge.MQTTClient do
     end
   end
 
-  defp publish_zone_attributes(base_topic, zone_topic, _zone_id, zone) do
+  defp publish_zone_attributes(_base_topic, zone_topic, _zone_id, zone) do
     Tortoise.publish(@client_id, "#{zone_topic}/volume", to_string(zone.volume), qos: 1, retain: true)
     mute_status = if zone.muted, do: "ON", else: "OFF"
     Tortoise.publish(@client_id, "#{zone_topic}/mute", mute_status, qos: 1, retain: true)
@@ -460,21 +460,10 @@ defmodule AmpBridge.MQTTClient do
     end
   end
 
-  defp get_zone_name(zones_map, zone) do
-    # Get the configured zone numbers and sort them
-    configured_zones = zones_map
-    |> Map.keys()
-    |> Enum.map(&String.to_integer/1)
-    |> Enum.sort()
-
-    # Map 0-based zone index to the corresponding configured zone number
-    case Enum.at(configured_zones, zone) do
-      nil -> nil
-      zone_number ->
-        case Map.get(zones_map, to_string(zone_number)) do
-          %{"name" => name} when is_binary(name) and name != "" -> name
-          _ -> nil
-        end
+  defp get_zone_name(zones_map, zone_id) do
+    case Map.get(zones_map, to_string(zone_id)) do
+      %{"name" => name} when is_binary(name) and name != "" -> name
+      _ -> nil
     end
   end
 
