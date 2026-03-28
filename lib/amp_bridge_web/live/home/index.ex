@@ -961,10 +961,10 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         end)
         |> Enum.into(%{})
 
-      # Create zone mapping for commands (1-based zone numbers)
+      # 1-based amp zone index for ZoneManager fallback (zone_id + 1)
       zone_mapping =
         configured_zones
-        |> Enum.with_index(1)
+        |> Enum.map(fn z -> {z, z + 1} end)
         |> Enum.into(%{})
 
       {configured_zones, mute_states, source_states, zone_sources_map, volume_states, zone_mapping}
@@ -1006,22 +1006,11 @@ defmodule AmpBridgeWeb.HomeLive.Index do
   end
 
   # Helper function to get zone name from device config
-  defp get_zone_name(device_config, zone) do
+  defp get_zone_name(device_config, zone_id) do
     if device_config && device_config.zones do
-      # Get the configured zone numbers and sort them
-      configured_zones = device_config.zones
-      |> Map.keys()
-      |> Enum.map(&String.to_integer/1)
-      |> Enum.sort()
-
-      # Map 0-based zone index to the corresponding configured zone number
-      case Enum.at(configured_zones, zone) do
-        nil -> nil
-        zone_number ->
-          case Map.get(device_config.zones, to_string(zone_number)) do
-            %{"name" => name} when is_binary(name) and name != "" -> name
-            _ -> nil
-          end
+      case Map.get(device_config.zones, to_string(zone_id)) do
+        %{"name" => name} when is_binary(name) and name != "" -> name
+        _ -> nil
       end
     else
       nil

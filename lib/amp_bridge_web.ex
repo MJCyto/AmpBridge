@@ -17,6 +17,8 @@ defmodule AmpBridgeWeb do
   those functions here.
   """
 
+  @dev_routes Application.compile_env(:amp_bridge, :dev_routes, false)
+
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt Ampbridge.svg Ampbridge-light.svg Ampbridge-dark.svg)
 
   def router do
@@ -26,6 +28,38 @@ defmodule AmpBridgeWeb do
       import Plug.Conn
       import Phoenix.Controller
       import Phoenix.LiveView.Router
+    end
+  end
+
+  @doc false
+  defmacro dev_live_dashboard_routes do
+    if @dev_routes do
+      quote do
+        import Phoenix.LiveDashboard.Router
+
+        scope "/dev" do
+          pipe_through(:browser)
+          live_dashboard("/dashboard", metrics: AmpBridgeWeb.Telemetry)
+        end
+      end
+    else
+      quote do
+      end
+    end
+  end
+
+  @doc false
+  defmacro dev_live_dashboard_request_logger_plug do
+    if @dev_routes do
+      quote do
+        plug(Phoenix.LiveDashboard.RequestLogger,
+          param_key: "request_logger",
+          cookie_key: "request_logger"
+        )
+      end
+    else
+      quote do
+      end
     end
   end
 

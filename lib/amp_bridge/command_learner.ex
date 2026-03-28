@@ -23,6 +23,23 @@ defmodule AmpBridge.CommandLearner do
 
     # Use HexCommandManager to get commands from serial_commands table
     case get_command_from_serial_commands(control_type, zone, opts) do
+      {:ok, {:bulk, command_sequence}} ->
+        # LearnedCommands store the exact bytes captured during learning; learn_command/4
+        # sends that binary on adapter_2. execute_command must do the same — sending
+        # per-byte on adapter_1 breaks framing/timing for some amps (sources not applied).
+        Logger.info(
+          "Using learned command for #{control_type} zone #{zone} (#{byte_size(command_sequence)} bytes on adapter_2)"
+        )
+
+        case send_command(command_sequence) do
+          :ok ->
+            {:ok, :command_sent}
+
+          {:error, reason} ->
+            Logger.error("Failed to send learned command: #{reason}")
+            {:error, reason}
+        end
+
       {:ok, hex_chunks} ->
         Logger.info("Using learned command for #{control_type} zone #{zone}")
 
@@ -229,13 +246,13 @@ defmodule AmpBridge.CommandLearner do
         end
       "turn_off" ->
         case get_turn_off_command(zone) do
-          {:ok, hex_chunks} -> {:ok, hex_chunks}
+          {:ok, _} = ok -> ok
           {:error, :no_command} -> {:error, :no_command}
           {:error, reason} -> {:error, reason}
         end
       "change_source" ->
         case get_change_source_command(zone, opts) do
-          {:ok, hex_chunks} -> {:ok, hex_chunks}
+          {:ok, _} = ok -> ok
           {:error, :no_command} -> {:error, :no_command}
           {:error, reason} -> {:error, reason}
         end
@@ -259,13 +276,7 @@ defmodule AmpBridge.CommandLearner do
         case zone_commands do
           [] -> {:error, :no_command}
           [command | _] ->
-            # Convert the command sequence to a list of hex chunks
-            # The command_sequence is stored as a single binary, so we need to split it
-            # into individual bytes and convert each to a binary chunk
-            hex_chunks = command.command_sequence
-            |> :binary.bin_to_list()
-            |> Enum.map(&<<&1>>)
-            {:ok, hex_chunks}
+            {:ok, {:bulk, command.command_sequence}}
         end
     end
   end
@@ -291,13 +302,7 @@ defmodule AmpBridge.CommandLearner do
           case zone_commands do
             [] -> {:error, :no_command}
             [command | _] ->
-              # Convert the command sequence to a list of hex chunks
-              # The command_sequence is stored as a single binary, so we need to split it
-              # into individual bytes and convert each to a binary chunk
-              hex_chunks = command.command_sequence
-              |> :binary.bin_to_list()
-              |> Enum.map(&<<&1>>)
-              {:ok, hex_chunks}
+              {:ok, {:bulk, command.command_sequence}}
           end
       end
     end
@@ -319,7 +324,7 @@ defmodule AmpBridge.CommandLearner do
   defp send_command(command_sequence) do
     # Send command via SerialManager
     # This will use the existing serial communication infrastructure
-    case SerialManager.send_command(:adapter_2, command_sequence, true) do
+    case SerialManager.send_command(:adapter_2, command_sequence, log_command: true) do
       :ok -> :ok
       {:error, reason} -> {:error, reason}
     end

@@ -55,7 +55,12 @@ defmodule AmpBridgeWeb.PageWrapper do
       |> assign(:page_label, page_label_from_path(current_path))
 
     ~H"""
-    <div class="w-screen h-screen">
+    <div
+      class="w-screen h-screen"
+      x-data="{ navExpanded: localStorage.getItem('nav-expanded') == 'true' }"
+      x-init="$watch('navExpanded', value => localStorage.setItem('nav-expanded', value))"
+      x-bind:class="{ 'nav-expanded': navExpanded }"
+    >
       <.nav_bar current_path={@current_path} />
 
       <div class={[

@@ -38,12 +38,9 @@ defmodule AmpBridgeWeb.Layouts do
           }
         </script>
       </head>
-      <body
-        class="bg-neutral-900 text-neutral-100 antialiased min-h-screen"
-        x-bind:class="{ 'nav-expanded': navExpanded }"
-        x-data="{ navExpanded: localStorage.getItem('nav-expanded') == 'true' }"
-        x-init="$watch('navExpanded', value => localStorage.setItem('nav-expanded', value))"
-      >
+      <%!-- Alpine lives under PageWrapper (nav + main) only. Putting x-data on <body>
+           breaks LiveView (e.g. /init phx-click) because Alpine owns the whole subtree. --%>
+      <body class="bg-neutral-900 text-neutral-100 antialiased min-h-screen">
         <div class="w-screen h-screen">
           <%= @inner_content %>
         </div>

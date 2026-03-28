@@ -27,7 +27,7 @@ defmodule AmpBridge.MixProject do
     [
       {:phoenix, "~> 1.7.0"},
       {:phoenix_live_view, "~> 0.20.0"},
-      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:phoenix_live_dashboard, "~> 0.8.3", only: [:dev]},
       {:ecto_sql, "~> 3.10"},
       {:ecto_sqlite3, "~> 0.21.0"},
       {:telemetry_metrics, "~> 1.0"},

@@ -1,6 +1,6 @@
 defmodule AmpBridgeWeb.Router do
   use AmpBridgeWeb, :router
-  import Phoenix.LiveDashboard.Router
+  require AmpBridgeWeb
 
   pipeline :browser do
     plug(:accepts, ["html"])
@@ -42,10 +42,5 @@ defmodule AmpBridgeWeb.Router do
     post("/zones/:id/source", ZoneController, :set_source)
   end
 
-  if Mix.env() == :dev do
-    scope "/dev" do
-      pipe_through(:browser)
-      live_dashboard("/dashboard", metrics: AmpBridgeWeb.Telemetry)
-    end
-  end
+  AmpBridgeWeb.dev_live_dashboard_routes()
 end
