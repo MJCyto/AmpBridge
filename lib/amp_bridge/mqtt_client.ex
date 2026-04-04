@@ -502,21 +502,27 @@ defmodule AmpBridge.MQTTClient do
         sources_map = device.sources || %{}
 
         if map_size(sources_map) > 0 do
-          # Search through sources map to find matching custom name
-          sources_map
-          |> Map.keys()
-          |> Enum.sort()
-          |> Enum.with_index()
-          |> Enum.find_value(fn {key, index} ->
-            source_data = Map.get(sources_map, key)
-            source_name = Map.get(source_data, "name", "Source #{index + 1}")
-            if source_name == custom_source_name do
-              "Source #{index + 1}"
-            else
-              nil
-            end
-          end)
-          |> case do
+          sorted_pairs =
+            sources_map
+            |> Map.keys()
+            |> Enum.sort()
+            |> Enum.with_index()
+            |> Enum.map(fn {key, index} ->
+              source_data = Map.get(sources_map, key)
+              source_name = Map.get(source_data, "name", "Source #{index + 1}")
+              {key, index, source_name}
+            end)
+
+          mapped =
+            Enum.find_value(sorted_pairs, fn {_key, index, source_name} ->
+              if source_name == custom_source_name do
+                "Source #{index + 1}"
+              else
+                nil
+              end
+            end)
+
+          case mapped do
             nil ->
               Logger.warning("Could not map custom source name '#{custom_source_name}' to 'Source X' format")
               custom_source_name  # Return original if not found
