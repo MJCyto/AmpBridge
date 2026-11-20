@@ -1,0 +1,25 @@
+services:
+  ampbridge-dev:
+    build:
+      context: ${AMPBRIDGE_SOURCE_DIR:-.}
+      dockerfile: Dockerfile
+    image: ampbridge-dev:local
+    container_name: ampbridge-dev
+    privileged: true
+    ports:
+      - "${AMPBRIDGE_HTTP_PORT:-4001}:4000"
+      - "${AMPBRIDGE_MQTT_PORT:-1886}:1885"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - dev_ampbridge-data:/app/data
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      PORT: "4000"
+      PHX_HOST: ${PHX_HOST:-localhost}
+      DATABASE_PATH: /app/data/amp_bridge.db
+      MIX_ENV: prod
+
+volumes:
+  dev_ampbridge-data:

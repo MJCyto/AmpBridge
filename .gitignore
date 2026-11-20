@@ -115,4 +115,5 @@ amp_bridge_dev.db*
 # Development scripts
 mutagen-sync.sh
 mutagen.yml
+docker-compose.dev.yml
 .secrets

@@ -1,0 +1,36 @@
+sync:
+  ampbridge-dev:
+    alpha: "/path/to/AmpBridge"
+    beta: "user@example-host:/path/to/AmpBridge/dev/source"
+    mode: two-way-resolved
+    maxStagingFileSize: 104857600
+    ignore:
+      paths:
+        - "**/_build/**"
+        - "**/deps/**"
+        - "**/node_modules/**"
+        - "**/priv/static/assets/**"
+        - "**/priv/static/cache_manifest.json"
+        - "**/*.db"
+        - "**/*.db-*"
+        - "**/*.db-wal"
+        - "**/*.db-shm"
+        - "**/log/**"
+        - "**/*.log"
+        - "**/.elixir_ls/**"
+        - "**/.idea/**"
+        - "**/.vscode/**"
+        - "**/local/**"
+        - "**/.env"
+        - "**/.secrets"
+        - "**/mutagen*.yml"
+      vcs: true
+    symlink:
+      mode: posix-raw
+    watch:
+      mode: portable
+      pollingInterval: 1
+    permissions:
+      mode: manual
+      defaultFileMode: "0644"
+      defaultDirectoryMode: "0755"
