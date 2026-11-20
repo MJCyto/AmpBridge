@@ -39,14 +39,52 @@ defmodule AmpBridgeWeb.SerialStepLive do
   def handle_info({:start_auto_detection, _amp_id}, socket) do
     Logger.info("Starting auto-detection for serial step")
     Phoenix.PubSub.subscribe(AmpBridge.PubSub, "serial_data")
-    {:noreply, put_flash(socket, :info, "Auto-detection started - send commands from your controller")}
+
+    {:noreply,
+     assign(socket,
+       auto_detection_active: true,
+       detection_status: "Listening for communication... Send a command from your controller now!"
+     )}
   end
 
   @impl true
   def handle_info({:stop_auto_detection, _amp_id}, socket) do
     Logger.info("Stopping auto-detection for serial step")
     Phoenix.PubSub.unsubscribe(AmpBridge.PubSub, "serial_data")
-    {:noreply, put_flash(socket, :info, "Auto-detection stopped")}
+
+    {:noreply,
+     assign(socket,
+       auto_detection_active: false,
+       detection_status: "Auto-detection stopped"
+     )}
+  end
+
+  @impl true
+  def handle_info({:serial_data, _data, _decoded, adapter_info}, socket) do
+    if socket.assigns.auto_detection_active &&
+         is_nil(socket.assigns.adapter_1_role) && is_nil(socket.assigns.adapter_2_role) do
+      {adapter_1_role, adapter_2_role, adapter_1_name, adapter_2_name} =
+        case adapter_info.adapter do
+          :adapter_1 -> {"controller", "amp", "Controller", "Amp"}
+          :adapter_2 -> {"amp", "controller", "Amp", "Controller"}
+        end
+
+      socket =
+        assign(socket,
+          adapter_1_role: adapter_1_role,
+          adapter_2_role: adapter_2_role,
+          adapter_1_name: adapter_1_name,
+          adapter_2_name: adapter_2_name,
+          auto_detection_active: false,
+          detection_status:
+            "Roles detected! Adapter 1: #{adapter_1_role}, Adapter 2: #{adapter_2_role}"
+        )
+
+      Phoenix.PubSub.unsubscribe(AmpBridge.PubSub, "serial_data")
+      save_adapter_roles(socket)
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -91,11 +129,41 @@ defmodule AmpBridgeWeb.SerialStepLive do
         case Devices.update_device(device, attrs) do
           {:ok, _updated_device} ->
             Logger.info("Updated #{adapter} name to #{name} for serial step")
-            {:noreply, put_flash(socket, :info, "#{String.capitalize(adapter)} name updated to #{name}")}
+
+            {:noreply,
+             put_flash(socket, :info, "#{String.capitalize(adapter)} name updated to #{name}")}
 
           {:error, changeset} ->
-            Logger.error("Failed to update #{adapter} name for serial step: #{inspect(changeset)}")
+            Logger.error(
+              "Failed to update #{adapter} name for serial step: #{inspect(changeset)}"
+            )
+
             {:noreply, put_flash(socket, :error, "Failed to update #{adapter} name")}
+        end
+    end
+  end
+
+  defp save_adapter_roles(socket) do
+    case Devices.get_device(1) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Device not found")}
+
+      device ->
+        attrs = %{
+          auto_detection_complete: true,
+          adapter_1_role: socket.assigns.adapter_1_role,
+          adapter_2_role: socket.assigns.adapter_2_role,
+          adapter_1_name: socket.assigns.adapter_1_name,
+          adapter_2_name: socket.assigns.adapter_2_name
+        }
+
+        case Devices.update_device(device, attrs) do
+          {:ok, _updated_device} ->
+            {:noreply, put_flash(socket, :info, "Roles detected and saved")}
+
+          {:error, changeset} ->
+            Logger.error("Failed to save adapter roles for serial step: #{inspect(changeset)}")
+            {:noreply, put_flash(socket, :error, "Failed to save adapter roles")}
         end
     end
   end
