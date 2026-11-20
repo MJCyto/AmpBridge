@@ -38,6 +38,7 @@ defmodule AmpBridgeWeb.SerialAnalysis.AdapterCard do
       <div class="mb-3">
         <label class="block text-sm font-medium text-neutral-300 mb-2">Select Device</label>
         <form phx-change="connect_adapter" phx-value-adapter={@adapter_key} phx-target={@myself}>
+          <input type="hidden" name="adapter" value={@adapter_key} />
           <select
             name="device"
             class={[
@@ -59,6 +60,7 @@ defmodule AmpBridgeWeb.SerialAnalysis.AdapterCard do
       <!-- Connection Settings -->
       <%= if @show_advanced do %>
         <form phx-change="set_adapter_settings" phx-value-adapter={@adapter_key} phx-debounce="100">
+          <input type="hidden" name="adapter" value={@adapter_key} />
           <div class="grid grid-cols-2 gap-2 mb-3">
           <div>
             <label class="block text-xs font-medium text-neutral-300 mb-1">Baud Rate</label>

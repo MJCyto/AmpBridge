@@ -125,28 +125,49 @@ defmodule AmpBridgeWeb.USBInitComponent do
     if device == "" do
       {:noreply, socket}
     else
-      case AmpBridge.SerialManager.connect_adapter(adapter_atom, device) do
-        {:ok, _uart_pid} ->
-          # Update socket assigns
-          socket =
-            case adapter_atom do
-              @adapter_1 ->
-                assign(socket,
-                  adapter_1_device: device,
-                  adapter_1_connected: true
-                )
+      current_device =
+        case adapter_atom do
+          @adapter_1 -> socket.assigns.adapter_1_device
+          @adapter_2 -> socket.assigns.adapter_2_device
+        end
 
-              @adapter_2 ->
-                assign(socket,
-                  adapter_2_device: device,
-                  adapter_2_connected: true
-                )
-            end
+      # Changing the selection for an already-connected adapter means switching
+      # its serial port, so release the old UART before connecting the new one.
+      disconnect_result =
+        if current_device && current_device != device do
+          AmpBridge.SerialManager.disconnect_adapter(adapter_atom)
+        else
+          :ok
+        end
 
-          {:noreply, put_flash(socket, :info, "#{adapter} connected to #{device}")}
-
+      case disconnect_result do
         {:error, reason} ->
-          {:noreply, put_flash(socket, :error, "Failed to connect #{adapter}: #{reason}")}
+          {:noreply, put_flash(socket, :error, "Failed to disconnect #{adapter}: #{reason}")}
+
+        :ok ->
+          case AmpBridge.SerialManager.connect_adapter(adapter_atom, device) do
+            {:ok, _uart_pid} ->
+              # Update socket assigns
+              socket =
+                case adapter_atom do
+                  @adapter_1 ->
+                    assign(socket,
+                      adapter_1_device: device,
+                      adapter_1_connected: true
+                    )
+
+                  @adapter_2 ->
+                    assign(socket,
+                      adapter_2_device: device,
+                      adapter_2_connected: true
+                    )
+                end
+
+              {:noreply, put_flash(socket, :info, "#{adapter} connected to #{device}")}
+
+            {:error, reason} ->
+              {:noreply, put_flash(socket, :error, "Failed to connect #{adapter}: #{reason}")}
+          end
       end
     end
   end
@@ -261,7 +282,6 @@ defmodule AmpBridgeWeb.USBInitComponent do
     send(self(), {:update_adapter_name, adapter, name})
     {:noreply, socket}
   end
-
 
   @impl true
   def render(assigns) do
