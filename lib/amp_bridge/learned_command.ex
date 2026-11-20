@@ -83,6 +83,6 @@ defmodule AmpBridge.LearnedCommand do
   def update_last_used_changeset(learned_command) do
     learned_command
     |> changeset(%{})
-    |> put_change(:last_used, NaiveDateTime.utc_now())
+    |> put_change(:last_used, NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second))
   end
 end

@@ -54,6 +54,34 @@ window.addEventListener("phx:page-loading-stop", () => topbar.hide());
 window.Alpine = Alpine;
 Alpine.start();
 
+window.addEventListener("phx:copy_messages_to_console", async (event) => {
+  const text = JSON.stringify(event.detail.messages, null, 2);
+  console.log("=== SERIAL MESSAGE LOG DATA ===");
+  console.log(text);
+  console.log("=== END MESSAGE LOG DATA ===");
+});
+
+window.addEventListener("phx:copy_messages_to_clipboard", async (event) => {
+  const text = JSON.stringify(event.detail.messages, null, 2);
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+  } catch (error) {
+    console.warn("Could not copy serial message data to the clipboard", error);
+  }
+});
+
 liveSocket.connect();
 
 window.liveSocket = liveSocket;

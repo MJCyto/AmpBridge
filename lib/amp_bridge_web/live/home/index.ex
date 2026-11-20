@@ -27,21 +27,22 @@ defmodule AmpBridgeWeb.HomeLive.Index do
 
       system_status = get_system_status()
 
-      socket = assign(socket,
-        adapter_1_connected: connection_status.adapter_1.connected,
-        adapter_2_connected: connection_status.adapter_2.connected,
-        advanced_mode: false,
-        all_messages: [],
-        database_connected: system_status.database_connected,
-        mqtt_connected: system_status.mqtt_connected,
-        mqtt_broker: system_status.mqtt_broker,
-        mqtt_message_count: system_status.mqtt_message_count,
-        system_uptime: system_status.system_uptime,
-        memory_usage: system_status.memory_usage,
-        last_command_time: system_status.last_command_time,
-        last_command_details: system_status.last_command_details,
-        error_count: system_status.error_count
-      )
+      socket =
+        assign(socket,
+          adapter_1_connected: connection_status.adapter_1.connected,
+          adapter_2_connected: connection_status.adapter_2.connected,
+          advanced_mode: false,
+          all_messages: [],
+          database_connected: system_status.database_connected,
+          mqtt_connected: system_status.mqtt_connected,
+          mqtt_broker: system_status.mqtt_broker,
+          mqtt_message_count: system_status.mqtt_message_count,
+          system_uptime: system_status.system_uptime,
+          memory_usage: system_status.memory_usage,
+          last_command_time: system_status.last_command_time,
+          last_command_details: system_status.last_command_details,
+          error_count: system_status.error_count
+        )
 
       if connected?(socket) do
         Phoenix.PubSub.subscribe(AmpBridge.PubSub, "device_updates")
@@ -50,7 +51,8 @@ defmodule AmpBridgeWeb.HomeLive.Index do
           devices when is_list(devices) ->
             Logger.info("DEVICE_CARD_DEBUG: HomeLive loaded #{length(devices)} devices")
 
-            {configured_zones, zone_mute_states, zone_source_states, zone_sources, zone_volume_states, zone_mapping} =
+            {configured_zones, zone_mute_states, zone_source_states, zone_sources,
+             zone_volume_states, zone_mapping} =
               load_zone_configuration()
 
             {:ok,
@@ -68,7 +70,9 @@ defmodule AmpBridgeWeb.HomeLive.Index do
 
           _ ->
             Logger.warning("DEVICE_CARD_DEBUG: HomeLive failed to load devices")
-            {configured_zones, zone_mute_states, zone_source_states, zone_sources, zone_volume_states, zone_mapping} =
+
+            {configured_zones, zone_mute_states, zone_source_states, zone_sources,
+             zone_volume_states, zone_mapping} =
               load_zone_configuration()
 
             {:ok,
@@ -103,6 +107,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
     error ->
       Logger.error("DEVICE_CARD_DEBUG: HomeLive mount error: #{inspect(error)}")
       system_status = get_system_status()
+
       {:ok,
        assign(socket,
          page_title: "AmpBridge",
@@ -222,20 +227,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
   def handle_event("copy_to_console", _params, socket) do
     if length(socket.assigns.all_messages) > 0 do
       # Create a simplified array structure for easy analysis
-      messages_data =
-        socket.assigns.all_messages
-        # Show in chronological order
-        |> Enum.reverse()
-        |> Enum.map(fn message ->
-          %{
-            timestamp: message.timestamp,
-            hex: message.hex,
-            size: message.size,
-            adapter: message.adapter,
-            adapter_name: message.adapter_name,
-            adapter_color: message.adapter_color
-          }
-        end)
+      messages_data = message_log_data(socket.assigns.all_messages)
 
       # Send to client for console log
       {:noreply,
@@ -251,7 +243,28 @@ defmodule AmpBridgeWeb.HomeLive.Index do
   end
 
   @impl true
-  def handle_event("connect_adapter", %{"adapter" => adapter, "device_path" => device_path}, socket) do
+  def handle_event("copy_data", _params, socket) do
+    if socket.assigns.all_messages != [] do
+      messages_data = message_log_data(socket.assigns.all_messages)
+
+      {:noreply, push_event(socket, "copy_messages_to_clipboard", %{messages: messages_data})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp message_log_data(messages) do
+    Enum.map(Enum.reverse(messages), fn message ->
+      Map.take(message, [:timestamp, :hex, :size, :adapter, :adapter_name, :adapter_color])
+    end)
+  end
+
+  @impl true
+  def handle_event(
+        "connect_adapter",
+        %{"adapter" => adapter, "device_path" => device_path},
+        socket
+      ) do
     adapter_atom = String.to_atom(adapter)
 
     case SerialManager.connect_adapter(adapter_atom, device_path) do
@@ -297,7 +310,11 @@ defmodule AmpBridgeWeb.HomeLive.Index do
   end
 
   @impl true
-  def handle_event("update_adapter_settings", %{"adapter" => adapter, "settings" => settings}, socket) do
+  def handle_event(
+        "update_adapter_settings",
+        %{"adapter" => adapter, "settings" => settings},
+        socket
+      ) do
     adapter_atom = String.to_atom(adapter)
 
     settings_map =
@@ -331,7 +348,9 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         case Devices.update_device(device, attrs) do
           {:ok, _updated_device} ->
             Logger.info("Updated #{adapter} name to #{name}")
-            {:noreply, put_flash(socket, :info, "#{String.capitalize(adapter)} name updated to #{name}")}
+
+            {:noreply,
+             put_flash(socket, :info, "#{String.capitalize(adapter)} name updated to #{name}")}
 
           {:error, changeset} ->
             Logger.error("Failed to update #{adapter} name: #{inspect(changeset)}")
@@ -371,7 +390,9 @@ defmodule AmpBridgeWeb.HomeLive.Index do
   def handle_info({:start_auto_detection, _amp_id}, socket) do
     Logger.info("Received start auto-detection request")
     Phoenix.PubSub.subscribe(AmpBridge.PubSub, "serial_data")
-    {:noreply, put_flash(socket, :info, "Auto-detection started - send commands from your controller")}
+
+    {:noreply,
+     put_flash(socket, :info, "Auto-detection started - send commands from your controller")}
   end
 
   @impl true
@@ -383,7 +404,9 @@ defmodule AmpBridgeWeb.HomeLive.Index do
 
   @impl true
   def handle_info({:serial_data, data, decoded, adapter_info}, socket) do
-    Logger.info("Auto-detection: Received data from #{adapter_info.adapter} - #{AmpBridge.SerialManager.format_hex(data)}")
+    Logger.info(
+      "Auto-detection: Received data from #{adapter_info.adapter} - #{AmpBridge.SerialManager.format_hex(data)}"
+    )
 
     # If in advanced mode, collect messages for the log
     if socket.assigns.advanced_mode do
@@ -395,11 +418,12 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         decoded: decoded,
         adapter: adapter_info.adapter,
         adapter_name: adapter_info.adapter_name || "Unknown",
-        adapter_color: case adapter_info.adapter do
-          :adapter_1 -> "blue"
-          :adapter_2 -> "green"
-          _ -> "grey"
-        end
+        adapter_color:
+          case adapter_info.adapter do
+            :adapter_1 -> "blue"
+            :adapter_2 -> "green"
+            _ -> "grey"
+          end
       }
 
       # Add to messages list (keep last 100 messages)
@@ -555,7 +579,19 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         end
       end)
 
-    {:noreply, assign(socket, devices: updated_devices)}
+    {configured_zones, zone_mute_states, zone_source_states, zone_sources, zone_volume_states,
+     zone_mapping} = load_zone_configuration()
+
+    {:noreply,
+     assign(socket,
+       devices: updated_devices,
+       configured_zones: configured_zones,
+       zone_mute_states: zone_mute_states,
+       zone_source_states: zone_source_states,
+       zone_sources: zone_sources,
+       zone_volume_states: zone_volume_states,
+       zone_mapping: zone_mapping
+     )}
   end
 
   @impl true
@@ -604,7 +640,9 @@ defmodule AmpBridgeWeb.HomeLive.Index do
 
   @impl true
   def handle_info({:zone_volume_change, zone, volume}, socket) do
-    Logger.info("HomeLive received zone_volume_change from component for zone #{zone}: #{volume}%")
+    Logger.info(
+      "HomeLive received zone_volume_change from component for zone #{zone}: #{volume}%"
+    )
 
     case update_zone_volume_state(zone, volume) do
       :ok ->
@@ -616,6 +654,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
             case update_zone_mute_state(zone, false) do
               :ok ->
                 {Map.put(socket.assigns.zone_mute_states, zone, false), :unmuted}
+
               {:error, _} ->
                 {socket.assigns.zone_mute_states, :unmute_failed}
             end
@@ -624,9 +663,11 @@ defmodule AmpBridgeWeb.HomeLive.Index do
           end
 
         zone_manager_zone = zone + 1
+
         case HexCommandManager.get_volume_command(zone_manager_zone, volume) do
           {:ok, hex_chunks} ->
             send_hex_chunks(:adapter_1, hex_chunks, "volume")
+
           {:error, reason} ->
             Logger.error("Failed to get volume command: #{reason}")
         end
@@ -634,11 +675,12 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         volume_percent = "#{volume}%"
         command_name = "Zone #{zone} Volume #{volume_percent}"
 
-        flash_message = case unmute_result do
-          :unmuted -> "Setting #{command_name} and unmuting zone"
-          :unmute_failed -> "Setting #{command_name} (failed to unmute zone)"
-          :not_muted -> "Setting #{command_name}"
-        end
+        flash_message =
+          case unmute_result do
+            :unmuted -> "Setting #{command_name} and unmuting zone"
+            :unmute_failed -> "Setting #{command_name} (failed to unmute zone)"
+            :not_muted -> "Setting #{command_name}"
+          end
 
         AmpBridge.MQTTClient.publish_zone_update(zone)
 
@@ -701,39 +743,56 @@ defmodule AmpBridgeWeb.HomeLive.Index do
     zone_manager_zone = Map.get(socket.assigns.zone_mapping, zone, zone + 1)
 
     # Get the device ID from the first device (same as used in command learning)
-    device_id = case socket.assigns.devices do
-      [device | _] -> device.id
-      [] -> 1  # Fallback to 1 if no devices
-    end
+    device_id =
+      case socket.assigns.devices do
+        [device | _] -> device.id
+        # Fallback to 1 if no devices
+        [] -> 1
+      end
 
     # Parse source name to get source index or handle "Off"
     case source do
       "Off" ->
         # Send turn_off command using CommandLearner
         Logger.info("Sending turn_off command for zone #{zone} using device #{device_id}")
+
         case AmpBridge.CommandLearner.execute_command(device_id, "turn_off", zone) do
           {:ok, :command_sent} ->
             Logger.info("Turn off command sent successfully for zone #{zone}")
+
           {:error, reason} ->
             Logger.warning("Failed to send turn off command for zone #{zone}: #{reason}")
         end
+
       source_name when is_binary(source_name) ->
         # Extract index from "Source X" format (1-based to 0-based)
         case Regex.run(~r/Source (\d+)/, source_name) do
           [_, index_str] ->
             source_index = String.to_integer(index_str) - 1
-            Logger.info("Sending change_source command for zone #{zone}, source_index #{source_index} using device #{device_id}")
+
+            Logger.info(
+              "Sending change_source command for zone #{zone}, source_index #{source_index} using device #{device_id}"
+            )
 
             # Use CommandLearner to execute learned change_source commands
-            case AmpBridge.CommandLearner.execute_command(device_id, "change_source", zone, source_index: source_index) do
+            case AmpBridge.CommandLearner.execute_command(device_id, "change_source", zone,
+                   source_index: source_index
+                 ) do
               {:ok, :command_sent} ->
-                Logger.info("Change source command sent successfully for zone #{zone}, source #{source_index}")
+                Logger.info(
+                  "Change source command sent successfully for zone #{zone}, source #{source_index}"
+                )
+
               {:error, reason} ->
-                Logger.warning("Failed to send change source command for zone #{zone}, source #{source_index}: #{reason}")
+                Logger.warning(
+                  "Failed to send change source command for zone #{zone}, source #{source_index}: #{reason}"
+                )
+
                 # Fallback to ZoneManager if learned command fails
                 Logger.info("Falling back to ZoneManager for source change")
                 AmpBridge.ZoneManager.change_zone_source(zone_manager_zone, source_index)
             end
+
           nil ->
             Logger.warning("Could not parse source name: #{source_name}")
         end
@@ -746,14 +805,17 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         # Publish updated state to MQTT for Home Assistant
         AmpBridge.MQTTClient.publish_zone_update(zone)
 
-        command_name = case source do
-          "Off" -> "Zone #{zone} Turn Off"
-          source_name when is_binary(source_name) ->
-            case Regex.run(~r/Source (\d+)/, source_name) do
-              [_, index_str] -> "Zone #{zone} Source #{index_str}"
-              nil -> "Zone #{zone} Source #{source_name}"
-            end
-        end
+        command_name =
+          case source do
+            "Off" ->
+              "Zone #{zone} Turn Off"
+
+            source_name when is_binary(source_name) ->
+              case Regex.run(~r/Source (\d+)/, source_name) do
+                [_, index_str] -> "Zone #{zone} Source #{index_str}"
+                nil -> "Zone #{zone} Source #{source_name}"
+              end
+          end
 
         {:noreply,
          socket
@@ -769,7 +831,9 @@ defmodule AmpBridgeWeb.HomeLive.Index do
 
   @impl true
   def handle_info({:zone_volume_button, zone, command}, socket) do
-    Logger.info("HomeLive received zone_volume_button from component for zone #{zone}: #{command}")
+    Logger.info(
+      "HomeLive received zone_volume_button from component for zone #{zone}: #{command}"
+    )
 
     target_volume =
       case command do
@@ -791,13 +855,16 @@ defmodule AmpBridgeWeb.HomeLive.Index do
           case update_zone_volume_state(zone, target_volume) do
             :ok ->
               current_mute_state = Map.get(socket.assigns.zone_mute_states, zone, false)
-              updated_volume_states = Map.put(socket.assigns.zone_volume_states, zone, target_volume)
+
+              updated_volume_states =
+                Map.put(socket.assigns.zone_volume_states, zone, target_volume)
 
               {updated_mute_states, unmute_result} =
                 if current_mute_state do
                   case update_zone_mute_state(zone, false) do
                     :ok ->
                       {Map.put(socket.assigns.zone_mute_states, zone, false), :unmuted}
+
                     {:error, _} ->
                       {socket.assigns.zone_mute_states, :unmute_failed}
                   end
@@ -808,11 +875,12 @@ defmodule AmpBridgeWeb.HomeLive.Index do
               volume_percent = "#{target_volume}%"
               command_name = "Zone #{zone} Volume #{volume_percent}"
 
-              flash_message = case unmute_result do
-                :unmuted -> "Setting #{command_name} and unmuting zone"
-                :unmute_failed -> "Setting #{command_name} (failed to unmute zone)"
-                :not_muted -> "Setting #{command_name}"
-              end
+              flash_message =
+                case unmute_result do
+                  :unmuted -> "Setting #{command_name} and unmuting zone"
+                  :unmute_failed -> "Setting #{command_name} (failed to unmute zone)"
+                  :not_muted -> "Setting #{command_name}"
+                end
 
               # Publish updated state to MQTT for Home Assistant
               AmpBridge.MQTTClient.publish_zone_update(zone)
@@ -945,6 +1013,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
 
       # Create zone sources based on configured sources
       sources_map = device.sources || %{}
+
       sources_list =
         sources_map
         |> Map.keys()
@@ -967,7 +1036,8 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         |> Enum.map(fn z -> {z, z + 1} end)
         |> Enum.into(%{})
 
-      {configured_zones, mute_states, source_states, zone_sources_map, volume_states, zone_mapping}
+      {configured_zones, mute_states, source_states, zone_sources_map, volume_states,
+       zone_mapping}
     else
       # Fallback to default zones 0-7 if no device or no zones configured (0-based)
       default_zones = [0, 1, 2, 3, 4, 5, 6, 7]
@@ -1017,14 +1087,13 @@ defmodule AmpBridgeWeb.HomeLive.Index do
     end
   end
 
-
-
   # Helper function to send hex chunks one after another with no delay
   defp send_hex_chunks(adapter, hex_chunks, command_type) do
     Enum.each(hex_chunks, fn chunk ->
       case SerialManager.send_command(adapter, chunk) do
         :ok ->
           Logger.debug("Sent #{command_type} chunk: #{inspect(chunk)}")
+
         {:error, reason} ->
           Logger.error("Failed to send #{command_type} chunk: #{reason}")
       end
@@ -1041,6 +1110,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
       {:ok, _updated_device} ->
         Logger.info("Updated zone #{zone} mute state to #{muted} in database")
         :ok
+
       {:error, changeset} ->
         Logger.error("Failed to update zone #{zone} mute state: #{inspect(changeset)}")
         {:error, changeset}
@@ -1053,11 +1123,12 @@ defmodule AmpBridgeWeb.HomeLive.Index do
     current_source_states = device.source_states || %{}
 
     # Store nil instead of "Off" for turned off zones
-    stored_source = case source do
-      "Off" -> nil
-      source when is_binary(source) -> source
-      _ -> nil
-    end
+    stored_source =
+      case source do
+        "Off" -> nil
+        source when is_binary(source) -> source
+        _ -> nil
+      end
 
     updated_source_states = Map.put(current_source_states, to_string(zone), stored_source)
 
@@ -1065,6 +1136,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
       {:ok, _updated_device} ->
         Logger.info("Updated zone #{zone} source state to #{stored_source || "Off"} in database")
         :ok
+
       {:error, changeset} ->
         Logger.error("Failed to update zone #{zone} source state: #{inspect(changeset)}")
         {:error, changeset}
@@ -1081,6 +1153,7 @@ defmodule AmpBridgeWeb.HomeLive.Index do
       {:ok, _updated_device} ->
         Logger.info("Updated zone #{zone} volume state to #{volume} in database")
         :ok
+
       {:error, changeset} ->
         Logger.error("Failed to update zone #{zone} volume state: #{inspect(changeset)}")
         {:error, changeset}
@@ -1164,7 +1237,8 @@ defmodule AmpBridgeWeb.HomeLive.Index do
       database_connected: database_connected,
       mqtt_connected: mqtt_connected,
       mqtt_broker: mqtt_broker,
-      mqtt_message_count: 0, # Placeholder
+      # Placeholder
+      mqtt_message_count: 0,
       system_uptime: system_uptime,
       memory_usage: memory_usage,
       last_command_time: last_command_time,
@@ -1185,5 +1259,4 @@ defmodule AmpBridgeWeb.HomeLive.Index do
       true -> "#{minutes}m"
     end
   end
-
 end

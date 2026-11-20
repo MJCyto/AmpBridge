@@ -149,6 +149,22 @@
               </svg>
               <span>Copy to Console</span>
             </button>
+            <button
+              phx-click="copy_data"
+              disabled={length(@all_messages) == 0}
+              class={[
+                "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2",
+                if(length(@all_messages) == 0,
+                  do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
+                  else: "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg"
+                )
+              ]}
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2m-1-10h3a2 2 0 012 2v10a2 2 0 01-2 2h-8a2 2 0 01-2-2V9a2 2 0 012-2h3m0 0V5a2 2 0 012-2h2a2 2 0 012 2v2m-6 0h6" />
+              </svg>
+              <span>Copy Data</span>
+            </button>
           </div>
         </div>
         <div class="bg-neutral-800 p-3 rounded min-h-[200px] max-h-[400px] overflow-y-auto">
@@ -356,12 +372,4 @@
     </div>
   </div>
 
-  <script>
-    window.addEventListener("phx:copy_messages_to_console", (e) => {
-      console.log("=== SERIAL MESSAGE LOG DATA ===");
-      console.log("Copy this data for analysis:");
-      console.log(JSON.stringify(e.detail.messages, null, 2));
-      console.log("=== END MESSAGE LOG DATA ===");
-    });
-  </script>
 </.page_wrapper>

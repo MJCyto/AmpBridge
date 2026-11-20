@@ -1,6 +1,7 @@
 defmodule AmpBridgeWeb.ZoneVolumeControl do
   use Phoenix.LiveComponent
   require Logger
+
   attr(:zone, :integer,
     required: true,
     doc: "Zone number (0-based internally, displayed as 1-based)"
@@ -160,7 +161,10 @@ defmodule AmpBridgeWeb.ZoneVolumeControl do
           >
             <option value="Off" selected={@current_source == "Off" || @current_source == nil}>Off</option>
             <%= for {source_name, index} <- Enum.with_index(@sources) do %>
-              <option value={"Source #{index + 1}"} selected={@current_source == "Source #{index + 1}"}>
+              <option
+                value={"Source #{index + 1}"}
+                selected={@current_source == source_name || @current_source == "Source #{index + 1}"}
+              >
                 <%= source_name %>
               </option>
             <% end %>

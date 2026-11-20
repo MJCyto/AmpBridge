@@ -5,64 +5,67 @@ defmodule AmpBridge.Application do
   @impl true
   def start(_type, _args) do
     # Use mock processes in test mode
-    children = if Application.get_env(:amp_bridge, :mock_hardware, false) do
-      [
-        AmpBridgeWeb.Telemetry,
-        AmpBridge.Repo,
-        {Phoenix.PubSub, name: AmpBridge.PubSub},
-        # Registry for hardware controllers
-        {Registry, keys: :unique, name: AmpBridge.Registry},
-        # Registry for command learning sessions
-        {Registry, keys: :unique, name: AmpBridge.CommandLearningRegistry},
-        # Mock hardware processes for testing
-        AmpBridge.MockUSBDeviceScanner,
-        AmpBridge.MockHardwareManager,
-        AmpBridge.MockSerialManager,
-        # Serial Decoder - handles ELAN protocol decoding
-        AmpBridge.SerialDecoder,
-        # Serial Relay - forwards data between adapters
-        AmpBridge.SerialRelay,
-        # Zone Manager - handles volume control and zone state tracking
-        AmpBridge.ZoneManager,
-        # Normalize zone source/mute in DB before MQTT publishes state
-        AmpBridge.StartupZoneDefaults,
-        # MQTT Client - publishes zone states for Home Assistant
-        AmpBridge.MQTTClient,
-        # Command Queue - our new module
-        AmpBridge.CommandQueue,
-        AmpBridgeWeb.Endpoint
-      ]
-    else
-      [
-        AmpBridgeWeb.Telemetry,
-        AmpBridge.Repo,
-        {Phoenix.PubSub, name: AmpBridge.PubSub},
-        # Registry for hardware controllers
-        {Registry, keys: :unique, name: AmpBridge.Registry},
-        # Registry for command learning sessions
-        {Registry, keys: :unique, name: AmpBridge.CommandLearningRegistry},
-        # USB Device Scanner - scans for USB-to-serial devices (must start before Hardware Manager)
-        AmpBridge.USBDeviceScanner,
-        # Hardware Manager - manages all amplifier controllers
-        AmpBridge.HardwareManager,
-        # Serial Decoder - handles ELAN protocol decoding
-        AmpBridge.SerialDecoder,
-        # Serial Manager - manages multiple serial connections
-        AmpBridge.SerialManager,
-        # Serial Relay - forwards data between adapters
-        AmpBridge.SerialRelay,
-        # Zone Manager - handles volume control and zone state tracking
-        AmpBridge.ZoneManager,
-        # HTTP before MQTT so the UI is reachable while zone defaults apply
-        AmpBridgeWeb.Endpoint,
-        # DB Off + unmuted for all configured zones before MQTT publishes (volumes unchanged)
-        AmpBridge.StartupZoneDefaults,
-        # MQTT Client - publishes zone states for Home Assistant
-        AmpBridge.MQTTClient,
-        # Command Queue - our new module
-        AmpBridge.CommandQueue
-      ]
-    end
+    children =
+      if Application.get_env(:amp_bridge, :mock_hardware, false) do
+        [
+          AmpBridgeWeb.Telemetry,
+          AmpBridge.Repo,
+          {Phoenix.PubSub, name: AmpBridge.PubSub},
+          # Registry for hardware controllers
+          {Registry, keys: :unique, name: AmpBridge.Registry},
+          # Registry for command learning sessions
+          {Registry, keys: :unique, name: AmpBridge.CommandLearningRegistry},
+          # Mock hardware processes for testing
+          AmpBridge.MockUSBDeviceScanner,
+          AmpBridge.MockHardwareManager,
+          AmpBridge.MockSerialManager,
+          # Serial Decoder - handles ELAN protocol decoding
+          AmpBridge.SerialDecoder,
+          # Serial Relay - forwards data between adapters
+          AmpBridge.SerialRelay,
+          # Zone Manager - handles volume control and zone state tracking
+          AmpBridge.ZoneManager,
+          # Normalize zone source/mute in DB before MQTT publishes state
+          AmpBridge.StartupZoneDefaults,
+          # MQTT Client - publishes zone states for Home Assistant
+          AmpBridge.MQTTClient,
+          # Command Queue - our new module
+          AmpBridge.CommandQueue,
+          AmpBridgeWeb.Endpoint
+        ]
+      else
+        [
+          AmpBridgeWeb.Telemetry,
+          AmpBridge.Repo,
+          {Phoenix.PubSub, name: AmpBridge.PubSub},
+          # Registry for hardware controllers
+          {Registry, keys: :unique, name: AmpBridge.Registry},
+          # Registry for command learning sessions
+          {Registry, keys: :unique, name: AmpBridge.CommandLearningRegistry},
+          # USB Device Scanner - scans for USB-to-serial devices (must start before Hardware Manager)
+          AmpBridge.USBDeviceScanner,
+          # Hardware Manager - manages all amplifier controllers
+          AmpBridge.HardwareManager,
+          # Serial Decoder - handles ELAN protocol decoding
+          AmpBridge.SerialDecoder,
+          # Serial Manager - manages multiple serial connections
+          # Serial Relay - forwards data between adapters
+          AmpBridge.SerialRelay,
+          # Serial Manager - manages multiple serial connections
+          AmpBridge.SerialManager,
+          AmpBridge.InboundCommandTracker,
+          # Zone Manager - handles volume control and zone state tracking
+          AmpBridge.ZoneManager,
+          # HTTP before MQTT so the UI is reachable while zone defaults apply
+          AmpBridgeWeb.Endpoint,
+          # DB Off + unmuted for all configured zones before MQTT publishes (volumes unchanged)
+          AmpBridge.StartupZoneDefaults,
+          # MQTT Client - publishes zone states for Home Assistant
+          AmpBridge.MQTTClient,
+          # Command Queue - our new module
+          AmpBridge.CommandQueue
+        ]
+      end
 
     opts = [strategy: :one_for_one, name: AmpBridge.Supervisor]
     Supervisor.start_link(children, opts)
