@@ -35,4 +35,25 @@ defmodule AmpBridge.InboundCommandTrackerTest do
     {[first, second], <<>>} =
       InboundCommandTracker.match_commands(<<0xAA, 0x01, 0xBB, 0x02>>, [first, second])
   end
+
+  test "retains enough bytes for calculated frames after learned matching" do
+    frame = <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>
+
+    {[], remainder} = InboundCommandTracker.match_commands(frame, [], 9)
+
+    assert remainder == frame
+  end
+
+  test "replays source and calculated frames through the same stream boundary" do
+    source = command(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x13, 0x01, 0x02, 0xD5>>)
+    mute = <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>
+
+    {matches, remainder} =
+      InboundCommandTracker.match_commands(source.command_sequence <> mute, [source], 9)
+
+    {events, <<>>} = AmpBridge.ZoneCommandProtocol.decode(remainder)
+
+    assert [matches] == [[source]]
+    assert events == [%{type: :mute, zone: 0}]
+  end
 end

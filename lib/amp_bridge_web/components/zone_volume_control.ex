@@ -75,6 +75,17 @@ defmodule AmpBridgeWeb.ZoneVolumeControl do
     render(assigns)
   end
 
+  defp source_option_value(nil, _sources), do: "Off"
+  defp source_option_value("Off", _sources), do: "Off"
+  defp source_option_value("Source " <> _ = source, _sources), do: source
+
+  defp source_option_value(source, sources) do
+    case Enum.find_index(sources, &(&1 == source)) do
+      nil -> "Off"
+      index -> "Source #{index + 1}"
+    end
+  end
+
   @impl true
   def render(assigns) do
     assigns = assign_new(assigns, :zone_name, fn -> nil end)
@@ -150,6 +161,7 @@ defmodule AmpBridgeWeb.ZoneVolumeControl do
         <form phx-change="source_change" phx-target={@myself}>
           <select
             name="source"
+            value={source_option_value(@current_source, @sources)}
             disabled={!@adapter_connected}
             class={[
               "w-full px-2 py-1 text-sm rounded border bg-neutral-700 text-neutral-200",
