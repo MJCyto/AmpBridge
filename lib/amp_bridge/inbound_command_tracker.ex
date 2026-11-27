@@ -9,23 +9,43 @@ defmodule AmpBridge.InboundCommandTracker do
 
   alias AmpBridge.{Devices, LearnedCommands, ZoneCommandProtocol}
 
-  @device_id 1
-
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @impl true
-  def init(_opts) do
+  def init(opts) do
     Phoenix.PubSub.subscribe(AmpBridge.PubSub, "serial_data")
-    {:ok, %{buffers: %{adapter_1: <<>>, adapter_2: <<>>}, commands: load_commands()}}
+    Phoenix.PubSub.subscribe(AmpBridge.PubSub, "learned_commands")
+    Phoenix.PubSub.subscribe(AmpBridge.PubSub, "device_updates")
+
+    device_id =
+      Keyword.get(
+        opts,
+        :device_id,
+        Application.get_env(:amp_bridge, :device, []) |> Keyword.get(:default_device_id, 1)
+      )
+
+    {:ok,
+     %{
+       device_id: device_id,
+       controller_adapter: nil,
+       buffers: %{},
+       commands: load_commands(device_id)
+     }}
   end
 
   @impl true
   def handle_info({:serial_data, data, _decoded, %{adapter: adapter}}, state) do
     adapter = normalize_adapter(adapter)
+    controller = controller_adapter(state)
 
-    if controller_adapter() == adapter do
+    state =
+      if is_nil(state.controller_adapter) and not is_nil(controller),
+        do: %{state | controller_adapter: controller},
+        else: state
+
+    if controller == adapter do
       buffer = Map.get(state.buffers, adapter, <<>>) <> data
       {matches, remainder} = match_commands(buffer, state.commands, 9)
       {calculated_events, remainder} = ZoneCommandProtocol.decode(remainder)
@@ -46,12 +66,18 @@ defmodule AmpBridge.InboundCommandTracker do
     end
   end
 
-  def handle_info(:refresh_commands, state), do: {:noreply, %{state | commands: load_commands()}}
+  def handle_info({:commands_changed, device_id}, %{device_id: device_id} = state),
+    do: {:noreply, %{state | commands: load_commands(device_id)}}
+
+  def handle_info({:device_updated, %{id: device_id}}, %{device_id: device_id} = state),
+    do: {:noreply, %{state | controller_adapter: nil, commands: load_commands(device_id)}}
 
   def handle_info(_message, state), do: {:noreply, state}
 
-  defp controller_adapter do
-    case Devices.get_device(@device_id) do
+  defp controller_adapter(%{controller_adapter: adapter}) when not is_nil(adapter), do: adapter
+
+  defp controller_adapter(%{device_id: device_id}) do
+    case Devices.get_device(device_id) do
       %{adapter_1_role: "controller"} -> :adapter_1
       %{adapter_2_role: "controller"} -> :adapter_2
       _ -> nil
@@ -91,7 +117,7 @@ defmodule AmpBridge.InboundCommandTracker do
     end)
   end
 
-  defp load_commands, do: LearnedCommands.list_commands_for_device(@device_id)
+  defp load_commands(device_id), do: LearnedCommands.list_commands_for_device(device_id)
 
   defp keep_suffix(buffer, commands, minimum_suffix) do
     max_length =
@@ -111,7 +137,7 @@ defmodule AmpBridge.InboundCommandTracker do
   defp apply_match(
          %{control_type: "change_source", zone: zone, source_index: source_index} = command
        ) do
-    case Devices.get_device(@device_id) do
+    case Devices.get_device(device_id()) do
       nil ->
         :ok
 
@@ -134,38 +160,6 @@ defmodule AmpBridge.InboundCommandTracker do
     end
   end
 
-  defp apply_match(%{control_type: control_type, zone: zone} = command)
-       when control_type in ["set_volume", "volume_up", "volume_down"] do
-    case Devices.get_device(@device_id) do
-      nil ->
-        :ok
-
-      device ->
-        current = Map.get(device.volume_states || %{}, to_string(zone), 0)
-
-        volume =
-          case control_type do
-            "set_volume" -> command.volume_level
-            "volume_up" -> min(current + 1, 100)
-            "volume_down" -> max(current - 1, 0)
-          end
-
-        if is_integer(volume) do
-          volume_states = Map.put(device.volume_states || %{}, to_string(zone), volume)
-
-          case Devices.update_device(device, %{volume_states: volume_states}) do
-            {:ok, _device} ->
-              LearnedCommands.mark_command_used(command)
-              AmpBridge.MQTTClient.publish_all_zones()
-              Logger.info("Mirrored learned volume command: zone=#{zone} volume=#{volume}")
-
-            {:error, reason} ->
-              Logger.warning("Could not mirror volume command state: #{inspect(reason)}")
-          end
-        end
-    end
-  end
-
   defp apply_match(_command), do: :ok
 
   defp apply_calculated_event(%{type: :set_volume, zone: zone, value: volume}) do
@@ -177,7 +171,7 @@ defmodule AmpBridge.InboundCommandTracker do
   end
 
   defp update_device_state(field, zone, value, label) do
-    case Devices.get_device(@device_id) do
+    case Devices.get_device(device_id()) do
       nil ->
         :ok
 
@@ -210,4 +204,7 @@ defmodule AmpBridge.InboundCommandTracker do
   end
 
   defp source_name(_sources, _source_index), do: nil
+
+  defp device_id,
+    do: Application.get_env(:amp_bridge, :device, []) |> Keyword.get(:default_device_id, 1)
 end

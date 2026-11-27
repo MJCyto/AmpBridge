@@ -24,6 +24,7 @@ config :amp_bridge, AmpBridgeWeb.Endpoint,
 
 # Enable dev routes for dashboard and mailbox
 config :amp_bridge, dev_routes: true
+config :amp_bridge, AmpBridge.StartupZoneDefaults, enabled: false
 
 # Configure your database
 config :amp_bridge, AmpBridge.Repo,

@@ -53,7 +53,11 @@ defmodule AmpBridge.Application do
           AmpBridge.SerialRelay,
           # Serial Manager - manages multiple serial connections
           AmpBridge.SerialManager,
-          AmpBridge.InboundCommandTracker,
+          {AmpBridge.InboundCommandTracker,
+           [
+             device_id:
+               Application.get_env(:amp_bridge, :device, []) |> Keyword.get(:default_device_id, 1)
+           ]},
           # Zone Manager - handles volume control and zone state tracking
           AmpBridge.ZoneManager,
           # HTTP before MQTT so the UI is reachable while zone defaults apply

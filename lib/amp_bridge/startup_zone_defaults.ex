@@ -11,7 +11,8 @@ defmodule AmpBridge.StartupZoneDefaults do
   end
 
   @doc false
-  def normalized_off_unmuted_attrs(%{zones: zones} = device) when is_map(zones) and map_size(zones) > 0 do
+  def normalized_off_unmuted_attrs(%{zones: zones} = device)
+      when is_map(zones) and map_size(zones) > 0 do
     zone_keys =
       zones
       |> Map.keys()
@@ -32,7 +33,10 @@ defmodule AmpBridge.StartupZoneDefaults do
 
   @impl true
   def init(_opts) do
-    if Application.get_env(:amp_bridge, :mock_hardware, false) do
+    defaults = Application.get_env(:amp_bridge, __MODULE__, [])
+
+    if Application.get_env(:amp_bridge, :mock_hardware, false) or
+         Keyword.get(defaults, :enabled, false) == false do
       {:ok, %{}}
     else
       run_boot()

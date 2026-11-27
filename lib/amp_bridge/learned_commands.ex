@@ -59,7 +59,7 @@ defmodule AmpBridge.LearnedCommands do
   """
   def create_command(attrs) do
     result = %LearnedCommand{} |> LearnedCommand.changeset(attrs) |> Repo.insert()
-    notify_tracker(result)
+    notify_tracker(result, attrs[:device_id] || attrs["device_id"])
     result
   end
 
@@ -68,7 +68,7 @@ defmodule AmpBridge.LearnedCommands do
   """
   def update_command(learned_command, attrs) do
     result = learned_command |> LearnedCommand.changeset(attrs) |> Repo.update()
-    notify_tracker(result)
+    notify_tracker(result, learned_command.device_id)
     result
   end
 
@@ -86,16 +86,15 @@ defmodule AmpBridge.LearnedCommands do
   """
   def deactivate_command(learned_command) do
     result = learned_command |> LearnedCommand.changeset(%{is_active: false}) |> Repo.update()
-    notify_tracker(result)
+    notify_tracker(result, learned_command.device_id)
     result
   end
 
-  defp notify_tracker({:ok, _}) do
-    if Process.whereis(AmpBridge.InboundCommandTracker),
-      do: send(AmpBridge.InboundCommandTracker, :refresh_commands)
+  defp notify_tracker({:ok, _}, device_id) do
+    Phoenix.PubSub.broadcast(AmpBridge.PubSub, "learned_commands", {:commands_changed, device_id})
   end
 
-  defp notify_tracker(_), do: :ok
+  defp notify_tracker(_, _), do: :ok
 
   @doc """
   Delete a learned command.
