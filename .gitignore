@@ -80,6 +80,10 @@ test/priv/
 # Documentation
 doc/
 docs/
+!docs/
+!docs/hardware-wiring.md
+!docs/images/
+!docs/images/*.png
 
 # Archives
 *.tar.gz
