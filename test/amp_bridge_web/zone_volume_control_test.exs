@@ -30,4 +30,30 @@ defmodule AmpBridgeWeb.ZoneVolumeControlTest do
     assert html =~ ~s(<option value="Source 2")
     assert html =~ "selected>\n            Zenbook"
   end
+
+  test "uses a neutral speaker icon when unmuted" do
+    html =
+      render_component(&AmpBridgeWeb.ZoneVolumeControl.zone_volume_control/1,
+        zone: 0,
+        adapter_connected: true,
+        adapter: "adapter_1",
+        mute: false
+      )
+
+    assert html =~ "/images/speaker-wave.svg"
+    assert html =~ "bg-neutral-700"
+  end
+
+  test "uses a struck speaker icon when muted" do
+    html =
+      render_component(&AmpBridgeWeb.ZoneVolumeControl.zone_volume_control/1,
+        zone: 0,
+        adapter_connected: true,
+        adapter: "adapter_1",
+        mute: true
+      )
+
+    assert html =~ "/images/speaker-x-mark.svg"
+    assert html =~ "bg-neutral-500"
+  end
 end

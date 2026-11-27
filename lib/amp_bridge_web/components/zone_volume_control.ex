@@ -86,12 +86,18 @@ defmodule AmpBridgeWeb.ZoneVolumeControl do
     end
   end
 
+  defp icon_style(url),
+    do:
+      "mask: url('#{url}') no-repeat center; -webkit-mask: url('#{url}') no-repeat center; background-color: currentColor; display: inline-block;"
+
   @impl true
   def render(assigns) do
     assigns = assign_new(assigns, :zone_name, fn -> nil end)
     assigns = assign_new(assigns, :volume, fn -> 0 end)
     assigns = assign_new(assigns, :mute, fn -> false end)
     assigns = assign_new(assigns, :myself, fn -> nil end)
+    assigns = assign_new(assigns, :current_source, fn -> "Off" end)
+    assigns = assign_new(assigns, :sources, fn -> [] end)
 
     ~H"""
     <div id={"zone-control-#{@zone}"} class="bg-neutral-600 rounded-lg p-2 border border-neutral-500 flex-shrink-0">
@@ -114,26 +120,22 @@ defmodule AmpBridgeWeb.ZoneVolumeControl do
           aria-label={if @mute, do: "Unmute zone #{@zone + 1}", else: "Mute zone #{@zone + 1}"}
           aria-pressed={@mute}
           class={[
-            "px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center",
+            "p-2 rounded-md transition-colors flex items-center justify-center",
             if(!@adapter_connected,
               do: "bg-neutral-500 text-neutral-300 cursor-not-allowed",
               else: if(@mute,
-                do: "bg-yellow-600 text-white hover:bg-yellow-700",
-                else: "bg-red-600 text-white hover:bg-red-700"
+                do: "bg-neutral-500 text-neutral-100 hover:bg-neutral-400",
+                else: "bg-neutral-700 text-neutral-200 hover:bg-neutral-600"
               )
             )
           ]}
         >
-          <%= if @mute do %>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
-            </svg>
-          <% else %>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
-            </svg>
-          <% end %>
+          <span
+            class="h-5 w-5"
+            style={icon_style(if(@mute, do: "/images/speaker-x-mark.svg", else: "/images/speaker-wave.svg"))}
+            aria-hidden="true"
+          >
+          </span>
         </button>
       </div>
 
