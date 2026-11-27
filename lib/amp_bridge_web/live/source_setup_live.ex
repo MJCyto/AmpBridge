@@ -16,7 +16,7 @@ defmodule AmpBridgeWeb.SourceSetupLive do
 
     {:ok,
      assign(socket,
-       page_title: "Source Setup",
+       page_title: "Sources",
        amp_id: amp_id,
        sources: sources
      )}
@@ -35,8 +35,7 @@ defmodule AmpBridgeWeb.SourceSetupLive do
         <div class="bg-neutral-700 rounded-lg shadow-lg border border-neutral-600">
           <div class="p-6">
             <div class="mb-6">
-              <h1 class="text-2xl font-semibold text-neutral-100 mb-2">Source Setup</h1>
-              <p class="text-neutral-400">Configure your amplifier's audio sources and inputs.</p>
+              <h1 class="text-2xl font-semibold text-neutral-100">Sources</h1>
             </div>
 
             <.live_component
@@ -54,15 +53,21 @@ defmodule AmpBridgeWeb.SourceSetupLive do
 
   defp load_sources_from_device(device) do
     case device do
-      nil -> []
+      nil ->
+        []
+
       device ->
         case device.sources do
-          nil -> []
+          nil ->
+            []
+
           sources_map when is_map(sources_map) ->
             sources_map
             |> Map.values()
             |> Enum.sort_by(& &1["index"])
-          _ -> []
+
+          _ ->
+            []
         end
     end
   end

@@ -18,6 +18,9 @@ defmodule AmpBridgeWeb.ZoneConfigComponentTest do
 
     assert html =~ ~s(phx-click="delete_zone")
     assert html =~ "/images/trash.svg"
+    assert html =~ ~s(x-show="confirming")
+    assert html =~ "Delete zone?"
+    assert html =~ "Cancel"
     assert html =~ ~s(phx-value-index="0")
     assert html =~ ~s(phx-value-index="1")
     assert html =~ ~s(phx-click="add_zone")

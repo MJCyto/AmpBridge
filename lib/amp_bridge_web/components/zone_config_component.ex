@@ -93,7 +93,7 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
 
   def handle_event(
         "update_zone_sources",
-        %{"index" => index, "sources" => selected_sources},
+        %{"index" => index} = params,
         socket
       ) do
     index_int = String.to_integer(index)
@@ -101,7 +101,8 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
 
     # Convert selected sources to integers
     selected_indices =
-      selected_sources
+      Map.get(params, "sources", [])
+      |> List.wrap()
       |> Enum.map(&String.to_integer/1)
       |> Enum.sort()
 
@@ -142,7 +143,10 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
             <div>
               <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <%= for {zone, index} <- Enum.with_index(@zones) do %>
-                  <div class="bg-neutral-800 rounded-lg p-4">
+                  <div
+                    x-data="{confirming: false}"
+                    class="bg-neutral-800 rounded-lg p-4"
+                  >
                     <div class="flex items-center gap-3">
                       <input
                         type="text"
@@ -156,9 +160,9 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
                       />
                       <button
                         type="button"
-                        phx-click="delete_zone"
                         phx-value-index={index}
                         phx-target={@myself}
+                        @click="confirming = true"
                         class="text-red-400 hover:text-red-300"
                         aria-label={"Delete zone #{index + 1}"}
                         title="Delete zone"
@@ -211,6 +215,47 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
                         No sources configured yet. Please set up sources first.
                       </div>
                     <% end %>
+
+                    <div
+                      x-show="confirming"
+                      x-cloak
+                      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby={"delete-zone-title-#{index}"}
+                      @click="confirming = false"
+                    >
+                      <div
+                        class="w-full max-w-sm rounded-lg border border-neutral-600 bg-neutral-800 p-5 shadow-xl"
+                        @click.stop
+                      >
+                        <h2 id={"delete-zone-title-#{index}"} class="text-lg font-semibold text-neutral-100">
+                          Delete zone?
+                        </h2>
+                        <p class="mt-2 text-sm text-neutral-400">
+                          This action cannot be reverted.
+                        </p>
+                        <div class="mt-5 flex justify-end gap-3">
+                          <button
+                            type="button"
+                            @click="confirming = false"
+                            class="rounded-md border border-neutral-600 px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-700"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            phx-click="delete_zone"
+                            phx-value-index={index}
+                            phx-target={@myself}
+                            @click="confirming = false"
+                            class="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
+                          >
+                            Delete zone
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 <% end %>
                 <button
