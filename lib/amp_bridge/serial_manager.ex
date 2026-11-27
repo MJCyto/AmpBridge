@@ -19,7 +19,8 @@ defmodule AmpBridge.SerialManager do
     :adapter_1_buffer,
     :adapter_2_buffer,
     :adapter_1_uart_pid,
-    :adapter_2_uart_pid
+    :adapter_2_uart_pid,
+    test_sent_commands: []
   ]
 
   # Client API
@@ -182,6 +183,9 @@ defmodule AmpBridge.SerialManager do
     |> Enum.map(&String.pad_leading(Integer.to_string(&1, 16), 2, "0"))
     |> Enum.join(" ")
   end
+
+  def test_sent_commands, do: GenServer.call(__MODULE__, :test_sent_commands)
+  def clear_test_sent_commands, do: GenServer.call(__MODULE__, :clear_test_sent_commands)
 
   # Server callbacks
 
@@ -349,75 +353,102 @@ defmodule AmpBridge.SerialManager do
 
   @impl true
   def handle_call({:send_command, adapter, data, log_command}, _from, state) do
-    uart_pid =
-      case adapter do
-        @adapter_1 -> state.adapter_1_uart_pid
-        @adapter_2 -> state.adapter_2_uart_pid
-      end
-
-    if uart_pid do
-      case Circuits.UART.write(uart_pid, data) do
-        :ok ->
-          Logger.info("Command sent via #{adapter}: #{format_hex(data)}")
-
-          if log_command do
-            # Same UART as the write above; label the real adapter so UI / advanced logs match
-            # the physical port (learned source commands use adapter_2).
-            tx_adapter_info = %{
-              adapter: adapter,
-              adapter_name: get_adapter_name(adapter),
-              adapter_color: get_adapter_color(adapter)
-            }
-
-            command_message = %{
-              timestamp: DateTime.utc_now(),
-              hex: format_hex(data),
-              size: byte_size(data),
-              decoded: %{
-                type: "command",
-                description: "Serial command sent",
-                command: "serial_command"
-              },
-              adapter: tx_adapter_info.adapter,
-              adapter_name: tx_adapter_info.adapter_name,
-              adapter_color: tx_adapter_info.adapter_color
-            }
-
-            Phoenix.PubSub.broadcast(
-              AmpBridge.PubSub,
-              "serial_data",
-              {:serial_data, data, command_message.decoded, tx_adapter_info}
-            )
-          end
-
-          {:reply, :ok, state}
-
-        {:error, reason} ->
-          Logger.error("Failed to send command via #{adapter}: #{reason}")
-          {:reply, {:error, reason}, state}
-      end
+    if Application.get_env(:amp_bridge, :test_serial_connected, false) do
+      if log_command, do: Logger.debug("Test serial command via #{adapter}: #{format_hex(data)}")
+      {:reply, :ok, %{state | test_sent_commands: [data | state.test_sent_commands]}}
     else
-      {:reply, {:error, "#{adapter} not connected"}, state}
+      uart_pid =
+        case adapter do
+          @adapter_1 -> state.adapter_1_uart_pid
+          @adapter_2 -> state.adapter_2_uart_pid
+        end
+
+      if uart_pid do
+        case Circuits.UART.write(uart_pid, data) do
+          :ok ->
+            Logger.info("Command sent via #{adapter}: #{format_hex(data)}")
+
+            if log_command do
+              # Same UART as the write above; label the real adapter so UI / advanced logs match
+              # the physical port (learned source commands use adapter_2).
+              tx_adapter_info = %{
+                adapter: adapter,
+                adapter_name: get_adapter_name(adapter),
+                adapter_color: get_adapter_color(adapter)
+              }
+
+              command_message = %{
+                timestamp: DateTime.utc_now(),
+                hex: format_hex(data),
+                size: byte_size(data),
+                decoded: %{
+                  type: "command",
+                  description: "Serial command sent",
+                  command: "serial_command"
+                },
+                adapter: tx_adapter_info.adapter,
+                adapter_name: tx_adapter_info.adapter_name,
+                adapter_color: tx_adapter_info.adapter_color
+              }
+
+              Phoenix.PubSub.broadcast(
+                AmpBridge.PubSub,
+                "serial_data",
+                {:serial_data, data, command_message.decoded, tx_adapter_info}
+              )
+            end
+
+            {:reply, :ok, state}
+
+          {:error, reason} ->
+            Logger.error("Failed to send command via #{adapter}: #{reason}")
+            {:reply, {:error, reason}, state}
+        end
+      else
+        {:reply, {:error, "#{adapter} not connected"}, state}
+      end
     end
   end
 
   @impl true
   def handle_call(:get_connection_status, _from, state) do
-    status = %{
-      adapter_1: %{
-        connected: state.adapter_1_connection != nil,
-        device: state.adapter_1_connection,
-        settings: state.adapter_1_settings
-      },
-      adapter_2: %{
-        connected: state.adapter_2_connection != nil,
-        device: state.adapter_2_connection,
-        settings: state.adapter_2_settings
+    if Application.get_env(:amp_bridge, :test_serial_connected, false) do
+      {:reply,
+       %{
+         adapter_1: %{
+           connected: true,
+           device: "test-adapter-1",
+           settings: state.adapter_1_settings
+         },
+         adapter_2: %{
+           connected: true,
+           device: "test-adapter-2",
+           settings: state.adapter_2_settings
+         }
+       }, state}
+    else
+      status = %{
+        adapter_1: %{
+          connected: state.adapter_1_connection != nil,
+          device: state.adapter_1_connection,
+          settings: state.adapter_1_settings
+        },
+        adapter_2: %{
+          connected: state.adapter_2_connection != nil,
+          device: state.adapter_2_connection,
+          settings: state.adapter_2_settings
+        }
       }
-    }
 
-    {:reply, status, state}
+      {:reply, status, state}
+    end
   end
+
+  def handle_call(:test_sent_commands, _from, state),
+    do: {:reply, Enum.reverse(state.test_sent_commands), state}
+
+  def handle_call(:clear_test_sent_commands, _from, state),
+    do: {:reply, :ok, %{state | test_sent_commands: []}}
 
   @impl true
   def handle_call({:check_cts_status, adapter}, _from, state) do
@@ -432,9 +463,11 @@ defmodule AmpBridge.SerialManager do
         {:ok, _data} ->
           # CTS is high (ready to receive)
           {:reply, {:ok, true}, state}
+
         {:error, :eagain} ->
           # CTS is low (not ready)
           {:reply, {:ok, false}, state}
+
         {:error, reason} ->
           Logger.error("Failed to check CTS status for #{adapter}: #{reason}")
           {:reply, {:error, reason}, state}
@@ -630,7 +663,9 @@ defmodule AmpBridge.SerialManager do
       Logger.info("Auto-connection complete: #{connection_count}/2 adapters connected")
 
       if connection_count == 2 do
-        Logger.info("Both adapters connected during auto-connection - relay will start when needed")
+        Logger.info(
+          "Both adapters connected during auto-connection - relay will start when needed"
+        )
       end
 
       state
@@ -646,6 +681,7 @@ defmodule AmpBridge.SerialManager do
   defp maybe_auto_start_relay(state) do
     if state.adapter_1_connection && state.adapter_2_connection do
       Logger.info("Both adapters connected - auto-starting SerialRelay")
+
       case AmpBridge.SerialRelay.start_relay_with_status(true, true) do
         :ok ->
           Logger.info("SerialRelay auto-started successfully")
@@ -665,17 +701,21 @@ defmodule AmpBridge.SerialManager do
       flow_control: true
     }
 
-    case AmpBridge.Devices.get_device(1) do
-      nil ->
-        {nil, default_settings, nil, default_settings}
+    if Application.get_env(:amp_bridge, :test_serial_connected, false) do
+      {nil, default_settings, nil, default_settings}
+    else
+      case AmpBridge.Devices.get_device(1) do
+        nil ->
+          {nil, default_settings, nil, default_settings}
 
-      device ->
-        adapter_1_device = device.adapter_1_device
-        adapter_1_settings = device.adapter_1_settings || default_settings
-        adapter_2_device = device.adapter_2_device
-        adapter_2_settings = device.adapter_2_settings || default_settings
+        device ->
+          adapter_1_device = device.adapter_1_device
+          adapter_1_settings = device.adapter_1_settings || default_settings
+          adapter_2_device = device.adapter_2_device
+          adapter_2_settings = device.adapter_2_settings || default_settings
 
-        {adapter_1_device, adapter_1_settings, adapter_2_device, adapter_2_settings}
+          {adapter_1_device, adapter_1_settings, adapter_2_device, adapter_2_settings}
+      end
     end
   end
 

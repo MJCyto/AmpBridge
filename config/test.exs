@@ -10,7 +10,8 @@ config :amp_bridge, AmpBridgeWeb.Endpoint,
 
 config :amp_bridge, AmpBridge.Repo,
   database: "priv/repo/amp_bridge_test.db",
-  pool_size: 5
+  pool_size: 5,
+  pool: Ecto.Adapters.SQL.Sandbox
 
 config :logger, level: :warning
 config :phoenix, :plug_serve_static, false
@@ -20,3 +21,4 @@ config :amp_bridge, :test_mode, true
 
 # Mock hardware processes in test mode
 config :amp_bridge, :mock_hardware, true
+config :amp_bridge, :test_serial_connected, true

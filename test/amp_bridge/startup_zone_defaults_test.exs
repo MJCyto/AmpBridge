@@ -4,6 +4,16 @@ defmodule AmpBridge.StartupZoneDefaultsTest do
   alias AmpBridge.{AudioDevice, Devices, Repo, StartupZoneDefaults}
 
   setup do
+    unless Process.whereis(AmpBridge.Repo) do
+      {:ok, pid} = AmpBridge.Repo.start_link()
+      Process.unlink(pid)
+    end
+
+    unless Process.whereis(AmpBridge.PubSub) do
+      {:ok, pid} = Phoenix.PubSub.Supervisor.start_link(name: AmpBridge.PubSub)
+      Process.unlink(pid)
+    end
+
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
     Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
     :ok

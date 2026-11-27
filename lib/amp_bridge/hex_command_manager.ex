@@ -26,7 +26,7 @@ defmodule AmpBridge.HexCommandManager do
               Enum.map(mute_array, fn base64_binary ->
                 case Base.decode64(base64_binary) do
                   {:ok, binary} -> binary
-                  {:error, _} -> <<>>
+                  :error -> <<>>
                 end
               end)
 
@@ -59,7 +59,7 @@ defmodule AmpBridge.HexCommandManager do
               Enum.map(unmute_array, fn base64_binary ->
                 case Base.decode64(base64_binary) do
                   {:ok, binary} -> binary
-                  {:error, _} -> <<>>
+                  :error -> <<>>
                 end
               end)
 
@@ -89,7 +89,7 @@ defmodule AmpBridge.HexCommandManager do
             Enum.map(mute_array, fn base64_binary ->
               case Base.decode64(base64_binary) do
                 {:ok, binary} -> binary
-                {:error, _} -> <<>>
+                :error -> <<>>
               end
             end)
 
@@ -97,7 +97,7 @@ defmodule AmpBridge.HexCommandManager do
             Enum.map(unmute_array, fn base64_binary ->
               case Base.decode64(base64_binary) do
                 {:ok, binary} -> binary
-                {:error, _} -> <<>>
+                :error -> <<>>
               end
             end)
 

@@ -238,24 +238,28 @@ defmodule AmpBridge.CommandLearner do
           {:error, :no_mute_command} -> {:error, :no_command}
           {:error, reason} -> {:error, reason}
         end
+
       "unmute" ->
         case HexCommandManager.get_unmute_command(zone) do
           {:ok, hex_chunks} -> {:ok, hex_chunks}
           {:error, :no_unmute_command} -> {:error, :no_command}
           {:error, reason} -> {:error, reason}
         end
+
       "turn_off" ->
         case get_turn_off_command(zone) do
           {:ok, _} = ok -> ok
           {:error, :no_command} -> {:error, :no_command}
           {:error, reason} -> {:error, reason}
         end
+
       "change_source" ->
         case get_change_source_command(zone, opts) do
           {:ok, _} = ok -> ok
           {:error, :no_command} -> {:error, :no_command}
           {:error, reason} -> {:error, reason}
         end
+
       _ ->
         {:error, :unsupported_control_type}
     end
@@ -266,15 +270,20 @@ defmodule AmpBridge.CommandLearner do
 
     # Get turn_off command for the zone - handle multiple results by taking the most recent
     case LearnedCommands.get_commands_by_type(1, "turn_off") do
-      [] -> {:error, :no_command}
+      [] ->
+        {:error, :no_command}
+
       commands ->
         # Filter commands for the specific zone and take the most recent one
-        zone_commands = commands
-        |> Enum.filter(&(&1.zone == zone))
-        |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
+        zone_commands =
+          commands
+          |> Enum.filter(&(&1.zone == zone))
+          |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
 
         case zone_commands do
-          [] -> {:error, :no_command}
+          [] ->
+            {:error, :no_command}
+
           [command | _] ->
             {:ok, {:bulk, command.command_sequence}}
         end
@@ -292,15 +301,20 @@ defmodule AmpBridge.CommandLearner do
     else
       # Get change_source command for the zone and source_index - handle multiple results by taking the most recent
       case LearnedCommands.get_commands_by_type(1, "change_source") do
-        [] -> {:error, :no_command}
+        [] ->
+          {:error, :no_command}
+
         commands ->
           # Filter commands for the specific zone and source_index, take the most recent one
-          zone_commands = commands
-          |> Enum.filter(&(&1.zone == zone && &1.source_index == source_index))
-          |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
+          zone_commands =
+            commands
+            |> Enum.filter(&(&1.zone == zone && &1.source_index == source_index))
+            |> Enum.sort_by(& &1.learned_at, {:desc, NaiveDateTime})
 
           case zone_commands do
-            [] -> {:error, :no_command}
+            [] ->
+              {:error, :no_command}
+
             [command | _] ->
               {:ok, {:bulk, command.command_sequence}}
           end
@@ -309,16 +323,16 @@ defmodule AmpBridge.CommandLearner do
   end
 
   defp send_hex_chunks(hex_chunks) do
-    # Send each hex chunk via SerialManager
-    Enum.each(hex_chunks, fn chunk ->
+    Enum.reduce_while(hex_chunks, :ok, fn chunk, :ok ->
       case SerialManager.send_command(:adapter_1, chunk) do
-        :ok -> :ok
+        :ok ->
+          {:cont, :ok}
+
         {:error, reason} ->
           Logger.error("Failed to send hex chunk: #{reason}")
-          {:error, reason}
+          {:halt, {:error, reason}}
       end
     end)
-    :ok
   end
 
   defp send_command(command_sequence) do

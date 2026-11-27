@@ -162,23 +162,7 @@ defmodule AmpBridge.ResponsePatternMatcher do
          }}
 
       :no_match ->
-        # Try to match unmute patterns
-        case match_unmute_pattern(combined_data) do
-          {:ok, zone} ->
-            Logger.info("Matched unmute response pattern for zone #{zone + 1}")
-
-            {:ok,
-             %{
-               control_type: "unmute",
-               zone: zone,
-               source_index: nil,
-               volume_level: nil,
-               pattern_type: :default
-             }}
-
-          :no_match ->
-            :no_match
-        end
+        :no_match
     end
   end
 

@@ -18,6 +18,21 @@ env:
   IMAGE_NAME: cytotoxicdingus/ampbridge
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.14.5'
+          otp-version: '25.3'
+      - name: Install dependencies
+        run: mix deps.get
+      - name: Run tests
+        run: mix test
+
   build-and-push:
     # Only run on push to master/main or when PR is merged
     if: |

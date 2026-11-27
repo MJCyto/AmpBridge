@@ -120,12 +120,18 @@ defmodule AmpBridge.InboundCommandTracker do
   defp load_commands(device_id), do: LearnedCommands.list_commands_for_device(device_id)
 
   defp keep_suffix(buffer, commands, minimum_suffix) do
-    max_length =
+    learned_suffix =
       commands
-      |> Enum.map(&byte_size(&1.command_sequence || <<>>))
-      |> Enum.max(fn -> 1 end)
-      |> Kernel.-(1)
-      |> max(minimum_suffix)
+      |> Enum.map(&longest_matching_prefix_suffix(buffer, &1.command_sequence))
+      |> Enum.max(fn -> 0 end)
+
+    empty_command_fallback =
+      if Enum.all?(
+           commands,
+           &(not is_binary(&1.command_sequence) or byte_size(&1.command_sequence) == 0)
+         ), do: 1, else: 0
+
+    max_length = max(max(learned_suffix, minimum_suffix), empty_command_fallback)
 
     if byte_size(buffer) > max_length do
       binary_part(buffer, byte_size(buffer) - max_length, max_length)
@@ -133,6 +139,17 @@ defmodule AmpBridge.InboundCommandTracker do
       buffer
     end
   end
+
+  defp longest_matching_prefix_suffix(buffer, sequence)
+       when is_binary(sequence) and byte_size(sequence) > 0 do
+    0..min(byte_size(buffer), byte_size(sequence) - 1)
+    |> Enum.reverse()
+    |> Enum.find(0, fn length ->
+      binary_part(buffer, byte_size(buffer) - length, length) == binary_part(sequence, 0, length)
+    end)
+  end
+
+  defp longest_matching_prefix_suffix(_buffer, _sequence), do: 0
 
   defp apply_match(
          %{control_type: "change_source", zone: zone, source_index: source_index} = command

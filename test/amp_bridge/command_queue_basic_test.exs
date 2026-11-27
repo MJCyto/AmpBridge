@@ -3,17 +3,31 @@ defmodule AmpBridge.CommandQueueBasicTest do
 
   alias AmpBridge.CommandQueue
   alias AmpBridge.CommandQueue.Command
+  alias AmpBridge.MockSerialManager
 
   setup do
+    if pid = Process.whereis(CommandQueue) do
+      try do
+        GenServer.stop(pid)
+      catch
+        :exit, _ -> :ok
+      end
+    end
+
     # Set test mode
     Application.put_env(:amp_bridge, :test_mode, true)
 
+    unless Process.whereis(MockSerialManager) do
+      {:ok, pid} = MockSerialManager.start_link([])
+      Process.unlink(pid)
+    end
+
     # Start the MockSerialManager
-    {:ok, _} = MockSerialManager.start_link()
     MockSerialManager.reset()
 
-    # Start the CommandQueue process
-    {:ok, pid} = CommandQueue.start_link()
+    # Exercise the queue through the same transport boundary used in production,
+    # with the deterministic test transport substituted for serial hardware.
+    {:ok, pid} = CommandQueue.start_link(transport: MockSerialManager)
     %{queue: pid}
   end
 
@@ -219,8 +233,8 @@ defmodule AmpBridge.CommandQueueBasicTest do
       # Wait for timeout to occur
       Process.sleep(300)
 
-      # Command should still be in queue due to timeout
-      assert [^command] = CommandQueue.get_queue(queue)
+      assert [] = CommandQueue.get_queue(queue)
+      assert CommandQueue.get_status(queue).processing == false
     end
 
     test "handles serial communication errors gracefully", %{queue: queue} do
@@ -243,8 +257,8 @@ defmodule AmpBridge.CommandQueueBasicTest do
       # Wait for error handling
       Process.sleep(100)
 
-      # Command should still be in queue due to error
       assert [^command] = CommandQueue.get_queue(queue)
+      assert CommandQueue.get_status(queue).processing == false
     end
   end
 

@@ -366,7 +366,7 @@ defmodule AmpBridge.LearnedCommands do
         |> Enum.map(fn base64_binary ->
           case Base.decode64(base64_binary) do
             {:ok, binary} -> binary
-            {:error, _} -> <<0>>
+            :error -> <<0>>
           end
         end)
         |> :erlang.list_to_binary()
@@ -506,7 +506,7 @@ defmodule AmpBridge.LearnedCommands do
   defp decode_command_sequence(base64_string) do
     case Base.decode64(base64_string) do
       {:ok, binary} -> {:ok, binary}
-      {:error, _} -> {:error, "Invalid base64 command sequence"}
+      :error -> {:error, "Invalid base64 command sequence"}
     end
   end
 
@@ -515,7 +515,7 @@ defmodule AmpBridge.LearnedCommands do
   defp decode_response_pattern(base64_string) do
     case Base.decode64(base64_string) do
       {:ok, binary} -> {:ok, binary}
-      {:error, _} -> {:error, "Invalid base64 response pattern"}
+      :error -> {:error, "Invalid base64 response pattern"}
     end
   end
 
@@ -523,6 +523,7 @@ defmodule AmpBridge.LearnedCommands do
 
   defp parse_learned_at(iso_string) do
     case NaiveDateTime.from_iso8601(iso_string) do
+      {:ok, naive_dt} -> naive_dt
       {:ok, naive_dt, _} -> naive_dt
       {:error, _} -> NaiveDateTime.utc_now()
     end

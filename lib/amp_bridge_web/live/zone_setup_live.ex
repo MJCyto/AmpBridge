@@ -17,7 +17,7 @@ defmodule AmpBridgeWeb.ZoneSetupLive do
 
     {:ok,
      assign(socket,
-       page_title: "Zone Setup",
+       page_title: "Zones",
        amp_id: amp_id,
        zones: zones,
        sources: sources
@@ -37,8 +37,7 @@ defmodule AmpBridgeWeb.ZoneSetupLive do
         <div class="bg-neutral-700 rounded-lg shadow-lg border border-neutral-600">
           <div class="p-6">
             <div class="mb-6">
-              <h1 class="text-2xl font-semibold text-neutral-100 mb-2">Zone Setup</h1>
-              <p class="text-neutral-400">Configure your amplifier's audio zones and speaker groups.</p>
+              <h1 class="text-2xl font-semibold text-neutral-100">Zones</h1>
             </div>
 
             <.live_component
@@ -57,30 +56,42 @@ defmodule AmpBridgeWeb.ZoneSetupLive do
 
   defp load_zones_from_device(device) do
     case device do
-      nil -> []
+      nil ->
+        []
+
       device ->
         case device.zones do
-          nil -> []
+          nil ->
+            []
+
           zones_map when is_map(zones_map) ->
             zones_map
             |> Map.values()
             |> Enum.sort_by(& &1["index"])
-          _ -> []
+
+          _ ->
+            []
         end
     end
   end
 
   defp load_sources_from_device(device) do
     case device do
-      nil -> []
+      nil ->
+        []
+
       device ->
         case device.sources do
-          nil -> []
+          nil ->
+            []
+
           sources_map when is_map(sources_map) ->
             sources_map
             |> Map.values()
             |> Enum.sort_by(& &1["index"])
-          _ -> []
+
+          _ ->
+            []
         end
     end
   end

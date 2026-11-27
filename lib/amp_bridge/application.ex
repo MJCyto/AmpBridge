@@ -23,14 +23,18 @@ defmodule AmpBridge.Application do
           AmpBridge.SerialDecoder,
           # Serial Relay - forwards data between adapters
           AmpBridge.SerialRelay,
+          # Mirrors controller traffic into persisted zone state
+          {AmpBridge.InboundCommandTracker,
+           [
+             device_id:
+               Application.get_env(:amp_bridge, :device, []) |> Keyword.get(:default_device_id, 1)
+           ]},
           # Zone Manager - handles volume control and zone state tracking
           AmpBridge.ZoneManager,
           # Normalize zone source/mute in DB before MQTT publishes state
           AmpBridge.StartupZoneDefaults,
           # MQTT Client - publishes zone states for Home Assistant
           AmpBridge.MQTTClient,
-          # Command Queue - our new module
-          AmpBridge.CommandQueue,
           AmpBridgeWeb.Endpoint
         ]
       else

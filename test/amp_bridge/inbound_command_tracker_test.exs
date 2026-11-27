@@ -32,7 +32,7 @@ defmodule AmpBridge.InboundCommandTrackerTest do
     first = command(<<0xAA, 0x01>>)
     second = command(<<0xBB, 0x02>>)
 
-    {[first, second], <<>>} =
+    {[_first, _second], <<>>} =
       InboundCommandTracker.match_commands(<<0xAA, 0x01, 0xBB, 0x02>>, [first, second])
   end
 

@@ -253,12 +253,6 @@ defmodule AmpBridgeWeb.HomeLive.Index do
     end
   end
 
-  defp message_log_data(messages) do
-    Enum.map(Enum.reverse(messages), fn message ->
-      Map.take(message, [:timestamp, :hex, :size, :adapter, :adapter_name, :adapter_color])
-    end)
-  end
-
   @impl true
   def handle_event(
         "connect_adapter",
@@ -331,6 +325,12 @@ defmodule AmpBridgeWeb.HomeLive.Index do
         Logger.error("Failed to update settings for #{adapter}: #{reason}")
         {:noreply, put_flash(socket, :error, "Failed to update #{adapter} settings: #{reason}")}
     end
+  end
+
+  defp message_log_data(messages) do
+    Enum.map(Enum.reverse(messages), fn message ->
+      Map.take(message, [:timestamp, :hex, :size, :adapter, :adapter_name, :adapter_color])
+    end)
   end
 
   @impl true

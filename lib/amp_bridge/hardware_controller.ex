@@ -185,7 +185,9 @@ defmodule AmpBridge.HardwareController do
             case AmpBridge.CommandLearner.execute_command(
                    state.device_id,
                    "change_source",
-                   zone_id, source_index: source_index) do
+                   zone_id,
+                   source_index: source_index
+                 ) do
               {:ok, :command_sent} ->
                 Logger.info("Change source command sent successfully for zone #{zone_id}")
 
@@ -235,19 +237,9 @@ defmodule AmpBridge.HardwareController do
     command = build_command(command_type, params)
     result = send_serial_command(state.serial_connection, command)
 
-    case result do
-      {:ok, response} ->
-        Logger.info("Hardware Controller #{state.name}: Command '#{command}' sent successfully")
-        {:reply, {:ok, response}, state}
-
-      {:error, reason} ->
-        Logger.error(
-          "Hardware Controller #{state.name}: Failed to send command '#{command}': #{reason}"
-        )
-
-        state = %{state | error_count: state.error_count + 1, last_error: reason}
-        {:reply, {:error, reason}, state}
-    end
+    {:ok, response} = result
+    Logger.info("Hardware Controller #{state.name}: Command '#{command}' sent successfully")
+    {:reply, {:ok, response}, state}
   end
 
   @impl true

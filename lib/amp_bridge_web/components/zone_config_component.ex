@@ -44,26 +44,21 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
     {:noreply, assign(socket, form_data: form_data, errors: errors)}
   end
 
-  def handle_event("update_zone_count", %{"zone_config" => %{"zone_count" => count}}, socket) do
-    if count == "" do
-      form_data = Map.put(socket.assigns.form_data, "zone_count", "")
-      # Broadcast the change
-      Phoenix.PubSub.broadcast(AmpBridge.PubSub, "zone_config_updates", {:zones_updated, []})
-      {:noreply, assign(socket, form_data: form_data, zones: [])}
-    else
-      count_int = String.to_integer(count)
-      zones = generate_zones(count_int, socket.assigns.sources)
+  def handle_event("add_zone", _params, socket) do
+    zones =
+      resize_zones(socket.assigns.zones, length(socket.assigns.zones) + 1, socket.assigns.sources)
 
-      form_data = Map.put(socket.assigns.form_data, "zone_count", count)
-      form_data = Map.put(form_data, "zones", zones)
+    persist_zones(socket, zones)
+  end
 
-      # Save to database and broadcast
-      zones_with_defaults = apply_zone_defaults(zones)
-      save_zones_to_db(socket, zones_with_defaults)
-      Phoenix.PubSub.broadcast(AmpBridge.PubSub, "zone_config_updates", {:zones_updated, zones})
+  def handle_event("delete_zone", %{"index" => index}, socket) do
+    zones =
+      socket.assigns.zones
+      |> List.delete_at(String.to_integer(index))
+      |> Enum.with_index()
+      |> Enum.map(fn {zone, new_index} -> Map.put(zone, "index", new_index) end)
 
-      {:noreply, assign(socket, form_data: form_data, zones: zones)}
-    end
+    persist_zones(socket, zones)
   end
 
   def handle_event("update_zone_name", %{"index" => index, "value" => name}, socket) do
@@ -86,12 +81,21 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
     # Save to database and broadcast
     zones_with_defaults = apply_zone_defaults(updated_zones)
     save_zones_to_db(socket, zones_with_defaults)
-    Phoenix.PubSub.broadcast(AmpBridge.PubSub, "zone_config_updates", {:zones_updated, updated_zones})
+
+    Phoenix.PubSub.broadcast(
+      AmpBridge.PubSub,
+      "zone_config_updates",
+      {:zones_updated, updated_zones}
+    )
 
     {:noreply, assign(socket, form_data: form_data, zones: updated_zones)}
   end
 
-  def handle_event("update_zone_sources", %{"index" => index, "sources" => selected_sources}, socket) do
+  def handle_event(
+        "update_zone_sources",
+        %{"index" => index, "sources" => selected_sources},
+        socket
+      ) do
     index_int = String.to_integer(index)
     zones = socket.assigns.zones
 
@@ -117,7 +121,12 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
     # Save to database and broadcast
     zones_with_defaults = apply_zone_defaults(updated_zones)
     save_zones_to_db(socket, zones_with_defaults)
-    Phoenix.PubSub.broadcast(AmpBridge.PubSub, "zone_config_updates", {:zones_updated, updated_zones})
+
+    Phoenix.PubSub.broadcast(
+      AmpBridge.PubSub,
+      "zone_config_updates",
+      {:zones_updated, updated_zones}
+    )
 
     {:noreply, assign(socket, form_data: form_data, zones: updated_zones)}
   end
@@ -128,40 +137,13 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
     <div>
       <form phx-submit="form_change" phx-target={@myself}>
         <div class="space-y-6">
-          <!-- Zone Count Configuration -->
-          <div>
-            <label class="block text-sm font-medium text-neutral-300 mb-2">
-              How many audio zones does your amplifier have?
-            </label>
-            <input
-              type="number"
-              name="zone_config[zone_count]"
-              value={@form_data["zone_count"]}
-              phx-blur="update_zone_count"
-              phx-target={@myself}
-              min="1"
-              max="20"
-              class={input_class(@errors["zone_count"])}
-              placeholder="Enter number of zones (1-20)"
-            />
-            <%= if @errors["zone_count"] do %>
-              <p class="mt-1 text-sm text-red-400"><%= @errors["zone_count"] %></p>
-            <% end %>
-          </div>
-
           <!-- Zone Names and Source Configuration -->
           <%= if length(@zones) > 0 do %>
             <div>
-              <label class="block text-sm font-medium text-neutral-300 mb-3">
-                Configure your zones:
-              </label>
-              <div class="space-y-6">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <%= for {zone, index} <- Enum.with_index(@zones) do %>
                   <div class="bg-neutral-800 rounded-lg p-4">
-                    <div class="flex items-center space-x-3 mb-3">
-                      <label class="text-sm text-neutral-300 w-20">
-                        Zone <%= index + 1 %>:
-                      </label>
+                    <div class="flex items-center gap-3">
                       <input
                         type="text"
                         name={"zone_config[zones][#{index}][name]"}
@@ -169,21 +151,41 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
                         phx-blur="update_zone_name"
                         phx-value-index={index}
                         phx-target={@myself}
-                        class={input_class(@errors["zones_#{index}"])}
-                        placeholder="Enter zone name (e.g., 'Living Room', 'Kitchen', 'Bedroom')"
+                        class={input_class(@errors["zones_#{index}"]) <> " flex-1"}
+                        placeholder={"Zone #{index + 1} name"}
                       />
+                      <button
+                        type="button"
+                        phx-click="delete_zone"
+                        phx-value-index={index}
+                        phx-target={@myself}
+                        class="text-red-400 hover:text-red-300"
+                        aria-label={"Delete zone #{index + 1}"}
+                        title="Delete zone"
+                      >
+                        <.icon url="/images/trash.svg" class="h-5 w-5" />
+                      </button>
                     </div>
                     <%= if @errors["zones_#{index}"] do %>
-                      <p class="ml-24 text-sm text-red-400 mb-3"><%= @errors["zones_#{index}"] %></p>
+                      <p class="text-sm text-red-400 mt-2"><%= @errors["zones_#{index}"] %></p>
                     <% end %>
 
-                    <!-- Available Sources for this Zone -->
                     <%= if length(@sources) > 0 do %>
-                      <div class="ml-24">
-                        <label class="block text-sm text-neutral-400 mb-2">
-                          Available sources for this zone:
-                        </label>
-                        <div class="flex flex-wrap gap-2">
+                      <div x-data="{open: false}" class="relative mt-4" @click.outside="open = false">
+                        <button
+                          type="button"
+                          @click="open = !open"
+                          class="flex w-full items-center justify-between rounded-md border border-neutral-600 bg-neutral-800 px-3 py-2 text-left text-sm text-neutral-300"
+                        >
+                          <span>Sources (<%= length(Map.get(zone, "available_sources", [])) %>)</span>
+                          <span aria-hidden="true">▾</span>
+                        </button>
+                        <div
+                          x-show="open"
+                          x-cloak
+                          class="absolute z-10 mt-1 w-full rounded-md border border-neutral-600 bg-neutral-800 p-3 shadow-lg"
+                        >
+                          <div class="space-y-2">
                           <%= for {source, source_index} <- Enum.with_index(@sources) do %>
                             <label class="flex items-center space-x-2">
                               <input
@@ -201,15 +203,25 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
                               </span>
                             </label>
                           <% end %>
+                          </div>
                         </div>
                       </div>
                     <% else %>
-                      <div class="ml-24 text-sm text-yellow-400">
+                      <div class="mt-4 text-sm text-yellow-400">
                         No sources configured yet. Please set up sources first.
                       </div>
                     <% end %>
                   </div>
                 <% end %>
+                <button
+                  type="button"
+                  phx-click="add_zone"
+                  phx-target={@myself}
+                  class="min-h-40 rounded-lg border-2 border-dashed border-neutral-600 text-neutral-400 hover:border-blue-500 hover:text-blue-400"
+                >
+                  <span class="text-3xl leading-none">+</span>
+                  <span class="mt-2 block text-sm">Add zone</span>
+                </button>
               </div>
             </div>
           <% end %>
@@ -220,7 +232,8 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
   end
 
   defp input_class(error) do
-    base_class = "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    base_class =
+      "w-full px-3 py-2 bg-neutral-800 text-neutral-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 
     if error do
       base_class <> " border-red-500"
@@ -230,7 +243,7 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
   end
 
   defp generate_zones(count, sources) do
-    source_indices = Enum.to_list(0..(length(sources) - 1))
+    source_indices = source_indices(sources)
 
     Enum.map(0..(count - 1), fn index ->
       %{
@@ -240,6 +253,20 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
       }
     end)
   end
+
+  defp resize_zones(existing_zones, count, sources) do
+    generated = generate_zones(count, sources)
+
+    Enum.map(generated, fn zone ->
+      case Enum.at(existing_zones, zone["index"]) do
+        nil -> zone
+        existing -> Map.merge(zone, existing)
+      end
+    end)
+  end
+
+  defp source_indices([]), do: []
+  defp source_indices(sources), do: Enum.to_list(0..(length(sources) - 1))
 
   defp validate_form(_form_data) do
     %{}
@@ -266,12 +293,16 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
 
   defp load_zones_from_device(device) do
     case device.zones do
-      nil -> []
+      nil ->
+        []
+
       zones_map when is_map(zones_map) ->
         zones_map
         |> Map.values()
         |> Enum.sort_by(& &1["index"])
-      _ -> []
+
+      _ ->
+        []
     end
   end
 
@@ -306,5 +337,17 @@ defmodule AmpBridgeWeb.ZoneConfigComponent do
           zones: zones_with_defaults
         })
     end
+  end
+
+  defp persist_zones(socket, zones) do
+    form_data =
+      socket.assigns.form_data
+      |> Map.put("zone_count", if(zones == [], do: "", else: to_string(length(zones))))
+      |> Map.put("zones", zones)
+
+    zones_with_defaults = apply_zone_defaults(zones)
+    save_zones_to_db(socket, zones_with_defaults)
+    Phoenix.PubSub.broadcast(AmpBridge.PubSub, "zone_config_updates", {:zones_updated, zones})
+    {:noreply, assign(socket, form_data: form_data, zones: zones)}
   end
 end

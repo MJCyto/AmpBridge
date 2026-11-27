@@ -54,4 +54,29 @@ defmodule AmpBridge.ZoneCommandProtocolTest do
     assert ZoneCommandProtocol.decode(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x00, 0xD2>>) ==
              {[%{type: :unmute, zone: 0}], <<>>}
   end
+
+  test "decodes captured controller volume and mute frames at every byte split" do
+    frames = [
+      <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, 0x01, 0x63, 0x77>>,
+      <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>,
+      <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x00, 0xD2>>
+    ]
+
+    expected = [
+      %{type: :set_volume, zone: 0, value: 99},
+      %{type: :mute, zone: 0},
+      %{type: :unmute, zone: 0}
+    ]
+
+    input = IO.iodata_to_binary(frames)
+
+    Enum.each(0..byte_size(input), fn split ->
+      {first, second} = :erlang.split_binary(input, split)
+      {events, remainder} = ZoneCommandProtocol.decode(first)
+      {tail_events, final_remainder} = ZoneCommandProtocol.decode(remainder <> second)
+
+      assert events ++ tail_events == expected
+      assert final_remainder == <<>>
+    end)
+  end
 end

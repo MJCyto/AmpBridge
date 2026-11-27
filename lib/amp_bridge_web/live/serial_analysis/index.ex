@@ -10,7 +10,6 @@ defmodule AmpBridgeWeb.SerialAnalysisLive.Index do
   @adapter_1 :adapter_1
   @adapter_2 :adapter_2
 
-
   @impl true
   def mount(_params, _session, socket) do
     socket = assign(socket, current_path: "/serial-analysis")
@@ -817,9 +816,6 @@ defmodule AmpBridgeWeb.SerialAnalysisLive.Index do
                socket
                |> put_flash(:info, "Sent #{command_name} command (default)")
                |> push_event("volume_response_log", log_data)}
-
-            {:error, error_msg} ->
-              {:noreply, put_flash(socket, :error, error_msg)}
           end
 
         nil ->
@@ -852,9 +848,6 @@ defmodule AmpBridgeWeb.SerialAnalysisLive.Index do
                socket
                |> put_flash(:info, "Sent #{command_name} command (default)")
                |> push_event("volume_response_log", log_data)}
-
-            {:error, error_msg} ->
-              {:noreply, put_flash(socket, :error, error_msg)}
           end
       end
     else

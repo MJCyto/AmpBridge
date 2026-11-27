@@ -3,6 +3,10 @@
 @import "tailwindcss/utilities";
 @import "navbar.css";
 
+[x-cloak] {
+  display: none !important;
+}
+
 /* Custom styles */
 @layer base {
   html {

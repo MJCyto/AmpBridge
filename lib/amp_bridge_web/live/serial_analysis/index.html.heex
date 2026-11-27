@@ -75,7 +75,7 @@
           </div>
           
           <div class="flex gap-4 overflow-x-auto">
-            <%= for zone <- @configured_zones do %>
+              <%= for _zone <- @configured_zones do %>
               <!-- <.zone_volume_control
                 zone={zone}
                 zone_name={get_zone_name(@device_config, zone)}

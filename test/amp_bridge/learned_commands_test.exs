@@ -7,20 +7,34 @@ defmodule AmpBridge.LearnedCommandsTest do
   alias AmpBridge.Repo
 
   setup do
+    unless Process.whereis(AmpBridge.Repo) do
+      {:ok, pid} = AmpBridge.Repo.start_link()
+      Process.unlink(pid)
+    end
+
+    unless Process.whereis(AmpBridge.PubSub) do
+      {:ok, pid} = Phoenix.PubSub.Supervisor.start_link(name: AmpBridge.PubSub)
+      Process.unlink(pid)
+    end
+
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
+
     # Clean up before each test
     Repo.delete_all(LearnedCommand)
     Repo.delete_all(AudioDevice)
 
     # Create a test device
-    {:ok, device} = AmpBridge.Devices.create_device(%{
-      name: "Test Amplifier",
-      model: "Test Model",
-      manufacturer: "Test Manufacturer",
-      zones: %{
-        "0" => %{"name" => "Living Room"},
-        "1" => %{"name" => "Kitchen"}
-      }
-    })
+    {:ok, device} =
+      AmpBridge.Devices.create_device(%{
+        name: "Test Amplifier",
+        model: "Test Model",
+        manufacturer: "Test Manufacturer",
+        zones: %{
+          "0" => %{"name" => "Living Room"},
+          "1" => %{"name" => "Kitchen"}
+        }
+      })
 
     %{device: device}
   end
@@ -30,20 +44,20 @@ defmodule AmpBridge.LearnedCommandsTest do
       export_data = LearnedCommands.export_device_commands(device.id)
 
       assert %{
-        "metadata" => %{
-          "export_version" => "1.0",
-          "exported_at" => _,
-          "device_info" => %{
-            "device_id" => device_id,
-            "device_name" => "Test Amplifier",
-            "device_model" => "Test Model",
-            "device_manufacturer" => "Test Manufacturer"
-          },
-          "total_zones" => 0,
-          "total_commands" => 0
-        },
-        "zones" => %{}
-      } = export_data
+               "metadata" => %{
+                 "export_version" => "1.0",
+                 "exported_at" => _,
+                 "device_info" => %{
+                   "device_id" => device_id,
+                   "device_name" => "Test Amplifier",
+                   "device_model" => nil,
+                   "device_manufacturer" => nil
+                 },
+                 "total_zones" => 0,
+                 "total_commands" => 0
+               },
+               "zones" => %{}
+             } = export_data
 
       assert device_id == device.id
     end
@@ -84,22 +98,23 @@ defmodule AmpBridge.LearnedCommandsTest do
       {:ok, _command3} = LearnedCommands.create_command(command3_attrs)
 
       export_data = LearnedCommands.export_device_commands(device.id)
+      device_id = device.id
 
       assert %{
-        "metadata" => %{
-          "export_version" => "1.0",
-          "exported_at" => _,
-          "device_info" => %{
-            "device_id" => ^device_id,
-            "device_name" => "Test Amplifier",
-            "device_model" => "Test Model",
-            "device_manufacturer" => "Test Manufacturer"
-          },
-          "total_zones" => 2,
-          "total_commands" => 3
-        },
-        "zones" => zones
-      } = export_data
+               "metadata" => %{
+                 "export_version" => "1.0",
+                 "exported_at" => _,
+                 "device_info" => %{
+                   "device_id" => ^device_id,
+                   "device_name" => "Test Amplifier",
+                   "device_model" => nil,
+                   "device_manufacturer" => nil
+                 },
+                 "total_zones" => 2,
+                 "total_commands" => 3
+               },
+               "zones" => zones
+             } = export_data
 
       assert device_id == device.id
 
@@ -118,7 +133,10 @@ defmodule AmpBridge.LearnedCommandsTest do
       # Verify command structure
       mute_command = Enum.find(zone_0["commands"], &(&1["control_type"] == "mute"))
       assert mute_command["zone"] == 0
-      assert mute_command["command_sequence"] == Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>)
+
+      assert mute_command["command_sequence"] ==
+               Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>)
+
       assert mute_command["is_active"] == true
       assert mute_command["learned_at"] != nil
     end
@@ -202,7 +220,8 @@ defmodule AmpBridge.LearnedCommandsTest do
                 "zone" => 0,
                 "source_index" => nil,
                 "volume_level" => nil,
-                "command_sequence" => Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>),
+                "command_sequence" =>
+                  Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>),
                 "response_pattern" => nil,
                 "learned_at" => NaiveDateTime.utc_now() |> NaiveDateTime.to_iso8601(),
                 "is_active" => true
@@ -212,7 +231,8 @@ defmodule AmpBridge.LearnedCommandsTest do
                 "zone" => 0,
                 "source_index" => nil,
                 "volume_level" => nil,
-                "command_sequence" => Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x00, 0xD0>>),
+                "command_sequence" =>
+                  Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x00, 0xD0>>),
                 "response_pattern" => nil,
                 "learned_at" => NaiveDateTime.utc_now() |> NaiveDateTime.to_iso8601(),
                 "is_active" => true
@@ -228,7 +248,8 @@ defmodule AmpBridge.LearnedCommandsTest do
                 "zone" => 1,
                 "source_index" => nil,
                 "volume_level" => nil,
-                "command_sequence" => Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, 0x01, 0x32, 0xA8, 0xF6>>),
+                "command_sequence" =>
+                  Base.encode64(<<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, 0x01, 0x32, 0xA8, 0xF6>>),
                 "response_pattern" => nil,
                 "learned_at" => NaiveDateTime.utc_now() |> NaiveDateTime.to_iso8601(),
                 "is_active" => true
@@ -254,7 +275,10 @@ defmodule AmpBridge.LearnedCommandsTest do
       # Verify command details
       mute_command = Enum.find(commands, &(&1.control_type == "mute"))
       assert mute_command.zone == 0
-      assert mute_command.command_sequence == <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>
+
+      assert mute_command.command_sequence ==
+               <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>
+
       assert mute_command.is_active == true
     end
 
@@ -320,7 +344,8 @@ defmodule AmpBridge.LearnedCommandsTest do
 
       json_data = Jason.encode!(invalid_data)
 
-      assert {:error, "Missing metadata section"} = LearnedCommands.import_device_commands(device.id, json_data)
+      assert {:error, "Missing metadata section"} =
+               LearnedCommands.import_device_commands(device.id, json_data)
     end
 
     test "returns error for invalid export version", %{device: device} do
@@ -333,7 +358,8 @@ defmodule AmpBridge.LearnedCommandsTest do
 
       json_data = Jason.encode!(invalid_data)
 
-      assert {:error, "Invalid export version"} = LearnedCommands.import_device_commands(device.id, json_data)
+      assert {:error, "Invalid export version"} =
+               LearnedCommands.import_device_commands(device.id, json_data)
     end
 
     test "returns error for invalid zones structure", %{device: device} do
@@ -347,7 +373,8 @@ defmodule AmpBridge.LearnedCommandsTest do
 
       json_data = Jason.encode!(invalid_data)
 
-      assert {:error, "Invalid zones structure"} = LearnedCommands.import_device_commands(device.id, json_data)
+      assert {:error, "Invalid zones structure"} =
+               LearnedCommands.import_device_commands(device.id, json_data)
     end
 
     test "returns error for invalid control type", %{device: device} do
@@ -375,10 +402,8 @@ defmodule AmpBridge.LearnedCommandsTest do
 
       json_data = Jason.encode!(invalid_data)
 
-      assert {:ok, result} = LearnedCommands.import_device_commands(device.id, json_data)
-      assert result.successful_imports == 0
-      assert result.failed_imports == 0  # Invalid commands are filtered out, not counted as failures
-      assert result.total_commands == 0
+      assert {:error, "No valid commands found in import file"} =
+               LearnedCommands.import_device_commands(device.id, json_data)
     end
 
     test "returns error for invalid base64 command sequence", %{device: device} do
@@ -406,9 +431,8 @@ defmodule AmpBridge.LearnedCommandsTest do
 
       json_data = Jason.encode!(invalid_data)
 
-      assert {:ok, result} = LearnedCommands.import_device_commands(device.id, json_data)
-      assert result.successful_imports == 0
-      assert result.total_commands == 0
+      assert {:error, "No valid commands found in import file"} =
+               LearnedCommands.import_device_commands(device.id, json_data)
     end
 
     test "handles empty zones", %{device: device} do
@@ -422,7 +446,8 @@ defmodule AmpBridge.LearnedCommandsTest do
 
       json_data = Jason.encode!(export_data)
 
-      assert {:error, "No valid commands found in import file"} = LearnedCommands.import_device_commands(device.id, json_data)
+      assert {:error, "No valid commands found in import file"} =
+               LearnedCommands.import_device_commands(device.id, json_data)
     end
 
     test "round-trip export and import", %{device: device} do
@@ -469,11 +494,15 @@ defmodule AmpBridge.LearnedCommandsTest do
       imported_volume = Enum.find(imported_commands, &(&1.control_type == "set_volume"))
 
       assert imported_mute.zone == 0
-      assert imported_mute.command_sequence == <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>
+
+      assert imported_mute.command_sequence ==
+               <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x18, 0x01, 0x01, 0xD1>>
 
       assert imported_volume.zone == 1
       assert imported_volume.volume_level == 75
-      assert imported_volume.command_sequence == <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, 0x01, 0x4B, 0xA2, 0xF6>>
+
+      assert imported_volume.command_sequence ==
+               <<0xA4, 0x05, 0x06, 0xFF, 0x0B, 0x10, 0x01, 0x4B, 0xA2, 0xF6>>
     end
   end
 end

@@ -12,8 +12,9 @@ defmodule AmpBridgeWeb.ZoneVolumeControlTest do
         current_source: "Zenbook"
       )
 
-    assert html =~ ~s(<option value="Source 2" selected="selected">Zenbook</option>)
-    refute html =~ ~s(<option value="Off" selected="selected">Off</option>)
+    assert html =~ ~s(<option value="Source 2")
+    assert html =~ "selected>\n            Zenbook"
+    refute html =~ "selected>\n            Off"
   end
 
   test "continues to select legacy Source N state values" do
@@ -26,6 +27,7 @@ defmodule AmpBridgeWeb.ZoneVolumeControlTest do
         current_source: "Source 2"
       )
 
-    assert html =~ ~s(<option value="Source 2" selected="selected">Zenbook</option>)
+    assert html =~ ~s(<option value="Source 2")
+    assert html =~ "selected>\n            Zenbook"
   end
 end

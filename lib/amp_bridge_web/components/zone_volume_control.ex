@@ -89,6 +89,9 @@ defmodule AmpBridgeWeb.ZoneVolumeControl do
   @impl true
   def render(assigns) do
     assigns = assign_new(assigns, :zone_name, fn -> nil end)
+    assigns = assign_new(assigns, :volume, fn -> 0 end)
+    assigns = assign_new(assigns, :mute, fn -> false end)
+    assigns = assign_new(assigns, :myself, fn -> nil end)
 
     ~H"""
     <div id={"zone-control-#{@zone}"} class="bg-neutral-600 rounded-lg p-2 border border-neutral-500 flex-shrink-0">

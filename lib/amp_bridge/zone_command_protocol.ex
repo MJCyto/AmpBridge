@@ -73,17 +73,22 @@ defmodule AmpBridge.ZoneCommandProtocol do
          events
        )
        when zone in 1..8 do
-    if complement == volume_complement(zone, value) do
-      do_decode(rest, [%{type: :set_volume, zone: zone - 1, value: value} | events])
-    else
-      do_decode(
-        binary_part(
-          @header <> <<0x10, zone, value, complement>> <> rest,
-          1,
-          byte_size(@header <> <<0x10, zone, value, complement>> <> rest) - 1
-        ),
-        events
-      )
+    frame = @header <> <<0x10, zone, value, complement>>
+
+    cond do
+      complement != volume_complement(zone, value) ->
+        do_decode(binary_part(frame <> rest, 1, byte_size(frame <> rest) - 1), events)
+
+      rest == <<>> or starts_with_header_prefix?(rest) ->
+        do_decode(rest, [%{type: :set_volume, zone: zone - 1, value: value} | events])
+
+      :binary.first(rest) == checksum(frame) ->
+        do_decode(binary_part(rest, 1, byte_size(rest) - 1), [
+          %{type: :set_volume, zone: zone - 1, value: value} | events
+        ])
+
+      true ->
+        do_decode(binary_part(frame <> rest, 1, byte_size(frame <> rest) - 1), events)
     end
   end
 
@@ -118,6 +123,15 @@ defmodule AmpBridge.ZoneCommandProtocol do
     do: binary_part(buffer, byte_size(buffer) - 9, 9)
 
   defp keep_suffix(buffer), do: buffer
+
+  defp starts_with_header?(<<@header, _::binary>>), do: true
+  defp starts_with_header?(_), do: false
+
+  defp starts_with_header_prefix?(rest) do
+    starts_with_header?(rest) or
+      (byte_size(rest) < byte_size(@header) and
+         binary_part(@header, 0, byte_size(rest)) == rest)
+  end
 
   defp mute_checksum(zone, 1), do: 0xD2 - zone
   defp mute_checksum(zone, 0), do: 0xD3 - zone
